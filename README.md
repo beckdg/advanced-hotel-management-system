@@ -36,6 +36,10 @@ cp backend/.env.example backend/.env
 | `PORT`         | API server port                      | `3001`                                               |
 | `DATABASE_URL` | PostgreSQL connection string         | `postgresql://stayflow:stayflow@localhost:5432/stayflow?schema=public` |
 | `CORS_ORIGIN`  | Allowed frontend origin for CORS     | `http://localhost:5173`                              |
+| `JWT_ACCESS_SECRET`  | JWT access token signing secret | `change-me-access-secret` |
+| `JWT_REFRESH_SECRET` | JWT refresh token signing secret | `change-me-refresh-secret` |
+| `JWT_ACCESS_EXPIRES_IN` | Access token TTL | `15m` |
+| `JWT_REFRESH_EXPIRES_IN` | Refresh token TTL | `7d` |
 
 ### Frontend (`frontend/.env`)
 
@@ -65,6 +69,7 @@ npm install
 cp .env.example .env
 npm run prisma:generate
 npm run prisma:migrate
+npm run prisma:seed
 npm run dev
 ```
 
@@ -136,6 +141,30 @@ docker compose down -v
 | Method | Endpoint  | Description       |
 | ------ | --------- | ----------------- |
 | GET    | `/health` | Service health check |
+
+### Authentication
+
+| Method | Endpoint | Description |
+| ------ | -------- | ----------- |
+| POST | `/api/auth/register` | Register a new user |
+| POST | `/api/auth/login` | Login and receive tokens |
+| POST | `/api/auth/refresh` | Refresh access token |
+| POST | `/api/auth/logout` | Revoke refresh token |
+
+### Users
+
+| Method | Endpoint | Auth | Permission |
+| ------ | -------- | ---- | ---------- |
+| GET | `/api/users/me` | Required | — |
+| GET | `/api/users` | Required | `users.read` |
+| GET | `/api/users/:id` | Required | `users.read` |
+| PATCH | `/api/users/:id` | Required | `users.update` or self (name only) |
+
+### Default Roles
+
+`SUPER_ADMIN`, `HOTEL_MANAGER`, `FRONT_DESK`, `HOUSEKEEPING`, `MAINTENANCE`, `FINANCE`
+
+Seed creates a default admin: `admin@stayflow.com` / `Admin123!`
 
 ## Tech Stack
 
