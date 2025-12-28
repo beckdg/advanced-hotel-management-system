@@ -16,6 +16,11 @@ export const env = {
   port: parseInt(process.env.PORT ?? '3001', 10),
   databaseUrl: requireEnv('DATABASE_URL'),
   corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
+  jwtAccessSecret: requireEnv('JWT_ACCESS_SECRET', 'test-access-secret'),
+  jwtRefreshSecret: requireEnv('JWT_REFRESH_SECRET', 'test-refresh-secret'),
+  jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? '15m',
+  jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '7d',
   isDevelopment: (process.env.NODE_ENV ?? 'development') === 'development',
   isProduction: process.env.NODE_ENV === 'production',
+  isTest: process.env.NODE_ENV === 'test',
 } as const;
