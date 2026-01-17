@@ -1,5 +1,6 @@
 import { useAuthStore } from '@/store/authStore';
 import type { AuthResponse, LoginCredentials, User } from '@/types/auth';
+import type { Hotel, Room, RoomType, CreateHotelInput, RoomFilters } from '@/types/hotel';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001';
 
@@ -125,6 +126,32 @@ class ApiClient {
 
   async getHealth(): Promise<{ status: string; service: string }> {
     return this.request<{ status: string; service: string }>('/health');
+  }
+
+  async getHotels(): Promise<ApiSuccessResponse<Hotel[]>> {
+    return this.request<ApiSuccessResponse<Hotel[]>>('/api/hotels');
+  }
+
+  async createHotel(input: CreateHotelInput): Promise<ApiSuccessResponse<Hotel>> {
+    return this.request<ApiSuccessResponse<Hotel>>('/api/hotels', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async getRoomTypes(hotelId?: string): Promise<ApiSuccessResponse<RoomType[]>> {
+    const query = hotelId ? `?hotelId=${hotelId}` : '';
+    return this.request<ApiSuccessResponse<RoomType[]>>(`/api/room-types${query}`);
+  }
+
+  async getRooms(filters?: RoomFilters): Promise<ApiSuccessResponse<Room[]>> {
+    const params = new URLSearchParams();
+    if (filters?.hotelId) params.set('hotelId', filters.hotelId);
+    if (filters?.roomTypeId) params.set('roomTypeId', filters.roomTypeId);
+    if (filters?.status) params.set('status', filters.status);
+    if (filters?.floorId) params.set('floorId', filters.floorId);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<ApiSuccessResponse<Room[]>>(`/api/rooms${query}`);
   }
 }
 
