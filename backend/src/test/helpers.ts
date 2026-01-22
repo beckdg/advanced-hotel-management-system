@@ -19,7 +19,45 @@ export const mockAdminUser: AuthUser = {
   name: 'Admin User',
   roleId: 'role-admin-id',
   roleName: ROLES.SUPER_ADMIN,
-  permissions: Object.values(PERMISSIONS),
+  permissions: [...Object.values(PERMISSIONS)],
+};
+
+export const mockHotelId = 'hotel-test-id';
+export const mockFloorId = 'floor-test-id';
+export const mockRoomTypeId = 'room-type-test-id';
+export const mockRoomId = 'room-test-id';
+export const mockAmenityId = 'amenity-test-id';
+
+export const mockHotel = {
+  id: mockHotelId,
+  name: 'Test Hotel',
+  address: '123 Test St',
+  city: 'Test City',
+  country: 'USA',
+  phone: null,
+  email: null,
+  timezone: 'UTC',
+  isActive: true,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  floors: [],
+  roomTypes: [],
+  _count: { rooms: 0 },
+};
+
+export const mockRoom = {
+  id: mockRoomId,
+  hotelId: mockHotelId,
+  roomNumber: '101',
+  floorId: mockFloorId,
+  roomTypeId: mockRoomTypeId,
+  status: 'AVAILABLE' as const,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  hotel: { id: mockHotelId, name: 'Test Hotel' },
+  floor: { id: mockFloorId, name: 'First Floor', floorNumber: 1 },
+  roomType: { id: mockRoomTypeId, name: 'Standard', baseRate: 100, maxOccupancy: 2 },
+  amenities: [],
 };
 
 export function createMockUserRecord(overrides: Partial<{
