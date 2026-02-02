@@ -16,6 +16,15 @@ enum RoomStatus {
   OUT_OF_SERVICE
 }
 
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+  NO_SHOW
+}
+
 model User {
   id            String         @id @default(uuid())
   email         String         @unique
@@ -105,9 +114,10 @@ model Hotel {
   isActive  Boolean    @default(true)
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
-  floors    Floor[]
-  roomTypes RoomType[]
-  rooms     Room[]
+  floors       Floor[]
+  roomTypes    RoomType[]
+  rooms        Room[]
+  reservations Reservation[]
 
   @@map("hotels")
 }
@@ -155,10 +165,56 @@ model Room {
   hotel      Hotel         @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   floor      Floor         @relation(fields: [floorId], references: [id], onDelete: Restrict)
   roomType   RoomType      @relation(fields: [roomTypeId], references: [id], onDelete: Restrict)
-  amenities  RoomAmenity[]
+  amenities    RoomAmenity[]
+  reservations Reservation[]
 
   @@unique([hotelId, roomNumber])
   @@map("rooms")
+}
+
+model Guest {
+  id          String             @id @default(uuid())
+  firstName   String
+  lastName    String
+  email       String?
+  phone       String?
+  dateOfBirth DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  reservations ReservationGuest[]
+
+  @@map("guests")
+}
+
+model Reservation {
+  id           String             @id @default(uuid())
+  hotelId      String
+  roomId       String
+  checkInDate  DateTime
+  checkOutDate DateTime
+  status       ReservationStatus  @default(PENDING)
+  totalGuests  Int                @default(1)
+  notes        String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  hotel        Hotel              @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room         Room               @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  guests       ReservationGuest[]
+
+  @@map("reservations")
+}
+
+model ReservationGuest {
+  id            String      @id @default(uuid())
+  reservationId String
+  guestId       String
+  isPrimary     Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  guest         Guest       @relation(fields: [guestId], references: [id], onDelete: Cascade)
+
+  @@unique([reservationId, guestId])
+  @@map("reservation_guests")
 }
 
 model Amenity {

@@ -1,6 +1,15 @@
 import { useAuthStore } from '@/store/authStore';
 import type { AuthResponse, LoginCredentials, User } from '@/types/auth';
 import type { Hotel, Room, RoomType, CreateHotelInput, RoomFilters } from '@/types/hotel';
+import type {
+  Guest,
+  Reservation,
+  CreateGuestInput,
+  CreateReservationInput,
+  ReservationFilters,
+  DashboardMetrics,
+  ReservationStatus,
+} from '@/types/reservation';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001';
 
@@ -152,6 +161,64 @@ class ApiClient {
     if (filters?.floorId) params.set('floorId', filters.floorId);
     const query = params.toString() ? `?${params.toString()}` : '';
     return this.request<ApiSuccessResponse<Room[]>>(`/api/rooms${query}`);
+  }
+
+  async getGuests(): Promise<ApiSuccessResponse<Guest[]>> {
+    return this.request<ApiSuccessResponse<Guest[]>>('/api/guests');
+  }
+
+  async createGuest(input: CreateGuestInput): Promise<ApiSuccessResponse<Guest>> {
+    return this.request<ApiSuccessResponse<Guest>>('/api/guests', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async getReservations(
+    filters?: ReservationFilters,
+  ): Promise<ApiSuccessResponse<Reservation[]>> {
+    const params = new URLSearchParams();
+    if (filters?.hotelId) params.set('hotelId', filters.hotelId);
+    if (filters?.roomId) params.set('roomId', filters.roomId);
+    if (filters?.status) params.set('status', filters.status);
+    if (filters?.guestId) params.set('guestId', filters.guestId);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<ApiSuccessResponse<Reservation[]>>(`/api/reservations${query}`);
+  }
+
+  async createReservation(
+    input: CreateReservationInput,
+  ): Promise<ApiSuccessResponse<Reservation>> {
+    return this.request<ApiSuccessResponse<Reservation>>('/api/reservations', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async updateReservation(
+    id: string,
+    input: { status?: ReservationStatus },
+  ): Promise<ApiSuccessResponse<Reservation>> {
+    return this.request<ApiSuccessResponse<Reservation>>(`/api/reservations/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async checkInReservation(id: string): Promise<ApiSuccessResponse<Reservation>> {
+    return this.request<ApiSuccessResponse<Reservation>>(`/api/reservations/${id}/check-in`, {
+      method: 'POST',
+    });
+  }
+
+  async checkOutReservation(id: string): Promise<ApiSuccessResponse<Reservation>> {
+    return this.request<ApiSuccessResponse<Reservation>>(`/api/reservations/${id}/check-out`, {
+      method: 'POST',
+    });
+  }
+
+  async getDashboardMetrics(): Promise<ApiSuccessResponse<DashboardMetrics>> {
+    return this.request<ApiSuccessResponse<DashboardMetrics>>('/api/dashboard/metrics');
   }
 }
 
