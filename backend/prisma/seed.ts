@@ -1,4 +1,4 @@
-import { PrismaClient, RoomStatus } from '@prisma/client';
+import { PrismaClient, ReservationStatus, RoomStatus } from '@prisma/client';
 import { hashPassword } from '../src/common/utils/password';
 import {
   ROLES,
@@ -21,8 +21,10 @@ const ROLE_DESCRIPTIONS: Record<RoleName, string> = {
 const PERMISSION_DESCRIPTIONS: Record<string, string> = {
   'users.read': 'View user accounts',
   'users.update': 'Update user accounts',
+  'guests.read': 'View guest profiles',
+  'guests.write': 'Manage guest profiles',
   'reservations.read': 'View reservations',
-  'reservations.update': 'Manage reservations',
+  'reservations.write': 'Manage reservations and check-in/out',
   'hotels.read': 'View hotels',
   'hotels.write': 'Manage hotels',
   'rooms.read': 'View rooms and room types',
@@ -188,12 +190,94 @@ async function seedHotelData() {
   }
 
   console.log(`Created sample hotel: ${hotel.name} with ${floors.length} floors, ${roomTypes.length} room types, ${amenities.length} amenities`);
+
+  return { hotel, rooms: await prisma.room.findMany({ where: { hotelId: hotel.id } }) };
+}
+
+async function seedGuestsAndReservations() {
+  const existing = await prisma.guest.findFirst({ where: { email: 'john.doe@example.com' } });
+  if (existing) {
+    console.log('Sample guest/reservation data already exists, skipping.');
+    return;
+  }
+
+  const hotel = await prisma.hotel.findFirst({ where: { name: 'StayFlow Grand Hotel' } });
+  if (!hotel) return;
+
+  const rooms = await prisma.room.findMany({
+    where: { hotelId: hotel.id, roomNumber: { in: ['101', '103'] } },
+  });
+  const room101 = rooms.find((r) => r.roomNumber === '101');
+  const room103 = rooms.find((r) => r.roomNumber === '103');
+  if (!room101 || !room103) return;
+
+  const [guest1, guest2] = await Promise.all([
+    prisma.guest.create({
+      data: {
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john.doe@example.com',
+        phone: '+1-555-0101',
+      },
+    }),
+    prisma.guest.create({
+      data: {
+        firstName: 'Jane',
+        lastName: 'Smith',
+        email: 'jane.smith@example.com',
+        phone: '+1-555-0102',
+      },
+    }),
+  ]);
+
+  const checkIn = new Date();
+  checkIn.setDate(checkIn.getDate() + 7);
+  const checkOut = new Date(checkIn);
+  checkOut.setDate(checkOut.getDate() + 3);
+
+  await prisma.reservation.create({
+    data: {
+      hotelId: hotel.id,
+      roomId: room103.id,
+      checkInDate: checkIn,
+      checkOutDate: checkOut,
+      status: ReservationStatus.CONFIRMED,
+      totalGuests: 2,
+      notes: 'Anniversary trip',
+      guests: {
+        create: [
+          { guestId: guest1.id, isPrimary: true },
+          { guestId: guest2.id, isPrimary: false },
+        ],
+      },
+    },
+  });
+
+  const pastCheckIn = new Date();
+  pastCheckIn.setDate(pastCheckIn.getDate() - 1);
+  const pastCheckOut = new Date();
+  pastCheckOut.setDate(pastCheckOut.getDate() + 2);
+
+  await prisma.reservation.create({
+    data: {
+      hotelId: hotel.id,
+      roomId: room101.id,
+      checkInDate: pastCheckIn,
+      checkOutDate: pastCheckOut,
+      status: ReservationStatus.PENDING,
+      totalGuests: 1,
+      guests: { create: [{ guestId: guest1.id, isPrimary: true }] },
+    },
+  });
+
+  console.log('Created sample guests and reservations');
 }
 
 async function main() {
   console.log('Seeding database...');
   await seedRolesAndPermissions();
   await seedHotelData();
+  await seedGuestsAndReservations();
   console.log('Seeding completed.');
 }
 
