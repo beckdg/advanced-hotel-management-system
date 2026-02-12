@@ -5,6 +5,9 @@ import { usersRouter } from './users';
 import { hotelsRouter, roomTypesRouter } from './hotels';
 import { roomsRouter } from './rooms';
 import { amenitiesRouter } from './amenities';
+import { guestsRouter } from './guests';
+import { reservationsRouter } from './reservations';
+import { dashboardRouter } from './dashboard';
 
 const router = Router();
 
@@ -15,5 +18,8 @@ router.use('/api/hotels', hotelsRouter);
 router.use('/api/room-types', roomTypesRouter);
 router.use('/api/rooms', roomsRouter);
 router.use('/api/amenities', amenitiesRouter);
+router.use('/api/guests', guestsRouter);
+router.use('/api/reservations', reservationsRouter);
+router.use('/api/dashboard', dashboardRouter);
 
 export { router as apiRouter };
