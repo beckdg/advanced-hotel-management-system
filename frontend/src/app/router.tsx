@@ -7,6 +7,8 @@ import { LoginPage } from '@/pages/LoginPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { HotelsPage } from '@/pages/HotelsPage';
 import { RoomsPage } from '@/pages/RoomsPage';
+import { GuestsPage } from '@/pages/GuestsPage';
+import { ReservationsPage } from '@/pages/ReservationsPage';
 
 export const router = createBrowserRouter([
   {
@@ -39,6 +41,14 @@ export const router = createBrowserRouter([
           {
             path: 'rooms',
             element: <RoomsPage />,
+          },
+          {
+            path: 'guests',
+            element: <GuestsPage />,
+          },
+          {
+            path: 'reservations',
+            element: <ReservationsPage />,
           },
         ],
       },
