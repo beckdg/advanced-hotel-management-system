@@ -26,6 +26,7 @@ jest.mock('../../../config/database', () => ({
       deleteMany: jest.fn(),
       createMany: jest.fn(),
     },
+    maintenanceRequest: { findFirst: jest.fn() },
     auditLog: { create: jest.fn() },
     $transaction: jest.fn(),
   },
@@ -99,7 +100,9 @@ describe('Reservations API', () => {
     (mockPrisma.room.findUnique as jest.Mock).mockResolvedValue({
       id: mockRoomId,
       hotelId: mockHotelId,
+      status: RoomStatus.AVAILABLE,
     });
+    (mockPrisma.maintenanceRequest.findFirst as jest.Mock).mockResolvedValue(null);
     (mockPrisma.guest.findMany as jest.Mock).mockResolvedValue([{ id: mockGuestId }]);
     (mockPrisma.reservation.findFirst as jest.Mock).mockResolvedValue(null);
   });
