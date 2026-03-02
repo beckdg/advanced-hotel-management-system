@@ -10,6 +10,11 @@ import type {
   DashboardMetrics,
   ReservationStatus,
 } from '@/types/reservation';
+import type {
+  HousekeepingTask,
+  MaintenanceRequest,
+  CreateMaintenanceInput,
+} from '@/types/operations';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001';
 
@@ -219,6 +224,72 @@ class ApiClient {
 
   async getDashboardMetrics(): Promise<ApiSuccessResponse<DashboardMetrics>> {
     return this.request<ApiSuccessResponse<DashboardMetrics>>('/api/dashboard/metrics');
+  }
+
+  async getHousekeepingTasks(): Promise<ApiSuccessResponse<HousekeepingTask[]>> {
+    return this.request<ApiSuccessResponse<HousekeepingTask[]>>('/api/housekeeping/tasks');
+  }
+
+  async startHousekeepingTask(id: string): Promise<ApiSuccessResponse<HousekeepingTask>> {
+    return this.request<ApiSuccessResponse<HousekeepingTask>>(
+      `/api/housekeeping/tasks/${id}/start`,
+      { method: 'POST' },
+    );
+  }
+
+  async inspectHousekeepingTask(id: string): Promise<ApiSuccessResponse<HousekeepingTask>> {
+    return this.request<ApiSuccessResponse<HousekeepingTask>>(
+      `/api/housekeeping/tasks/${id}/inspect`,
+      { method: 'POST' },
+    );
+  }
+
+  async completeHousekeepingTask(id: string): Promise<ApiSuccessResponse<HousekeepingTask>> {
+    return this.request<ApiSuccessResponse<HousekeepingTask>>(
+      `/api/housekeeping/tasks/${id}/complete`,
+      { method: 'POST' },
+    );
+  }
+
+  async getMaintenanceRequests(): Promise<ApiSuccessResponse<MaintenanceRequest[]>> {
+    return this.request<ApiSuccessResponse<MaintenanceRequest[]>>('/api/maintenance');
+  }
+
+  async createMaintenanceRequest(
+    input: CreateMaintenanceInput,
+  ): Promise<ApiSuccessResponse<MaintenanceRequest>> {
+    return this.request<ApiSuccessResponse<MaintenanceRequest>>('/api/maintenance', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async assignMaintenanceRequest(
+    id: string,
+    assignedToUserId: string,
+  ): Promise<ApiSuccessResponse<MaintenanceRequest>> {
+    return this.request<ApiSuccessResponse<MaintenanceRequest>>(`/api/maintenance/${id}/assign`, {
+      method: 'POST',
+      body: JSON.stringify({ assignedToUserId }),
+    });
+  }
+
+  async startMaintenanceRequest(id: string): Promise<ApiSuccessResponse<MaintenanceRequest>> {
+    return this.request<ApiSuccessResponse<MaintenanceRequest>>(`/api/maintenance/${id}/start`, {
+      method: 'POST',
+    });
+  }
+
+  async resolveMaintenanceRequest(id: string): Promise<ApiSuccessResponse<MaintenanceRequest>> {
+    return this.request<ApiSuccessResponse<MaintenanceRequest>>(`/api/maintenance/${id}/resolve`, {
+      method: 'POST',
+    });
+  }
+
+  async closeMaintenanceRequest(id: string): Promise<ApiSuccessResponse<MaintenanceRequest>> {
+    return this.request<ApiSuccessResponse<MaintenanceRequest>>(`/api/maintenance/${id}/close`, {
+      method: 'POST',
+    });
   }
 }
 

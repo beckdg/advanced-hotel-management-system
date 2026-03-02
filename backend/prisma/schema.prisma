@@ -25,6 +25,28 @@ enum ReservationStatus {
   NO_SHOW
 }
 
+enum HousekeepingStatus {
+  DIRTY
+  CLEANING
+  INSPECTING
+  READY
+}
+
+enum MaintenancePriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum MaintenanceStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
 model User {
   id            String         @id @default(uuid())
   email         String         @unique
@@ -35,8 +57,11 @@ model User {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   role          Role           @relation(fields: [roleId], references: [id])
-  refreshTokens RefreshToken[]
-  auditLogs     AuditLog[]
+  refreshTokens            RefreshToken[]
+  auditLogs                AuditLog[]
+  assignedHousekeepingTasks HousekeepingTask[]     @relation("AssignedHousekeeping")
+  reportedMaintenance      MaintenanceRequest[]   @relation("ReportedMaintenance")
+  assignedMaintenance      MaintenanceRequest[]   @relation("AssignedMaintenance")
 
   @@map("users")
 }
@@ -165,11 +190,46 @@ model Room {
   hotel      Hotel         @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   floor      Floor         @relation(fields: [floorId], references: [id], onDelete: Restrict)
   roomType   RoomType      @relation(fields: [roomTypeId], references: [id], onDelete: Restrict)
-  amenities    RoomAmenity[]
-  reservations Reservation[]
+  amenities           RoomAmenity[]
+  reservations        Reservation[]
+  housekeepingTasks   HousekeepingTask[]
+  maintenanceRequests MaintenanceRequest[]
 
   @@unique([hotelId, roomNumber])
   @@map("rooms")
+}
+
+model HousekeepingTask {
+  id               String             @id @default(uuid())
+  roomId           String
+  assignedToUserId String?
+  status           HousekeepingStatus @default(DIRTY)
+  notes            String?
+  completedAt      DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  room             Room               @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  assignedTo       User?              @relation("AssignedHousekeeping", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+
+  @@map("housekeeping_tasks")
+}
+
+model MaintenanceRequest {
+  id               String              @id @default(uuid())
+  roomId           String
+  reportedByUserId String
+  assignedToUserId String?
+  title            String
+  description      String?
+  priority         MaintenancePriority @default(MEDIUM)
+  status           MaintenanceStatus   @default(OPEN)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  room             Room                @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  reportedBy       User                @relation("ReportedMaintenance", fields: [reportedByUserId], references: [id], onDelete: Restrict)
+  assignedTo       User?               @relation("AssignedMaintenance", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+
+  @@map("maintenance_requests")
 }
 
 model Guest {
