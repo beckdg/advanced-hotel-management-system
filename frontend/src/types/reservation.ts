@@ -72,4 +72,7 @@ export interface DashboardMetrics {
   totalRooms: number;
   activeReservations: number;
   occupiedRooms: number;
+  dirtyRooms: number;
+  activeMaintenanceRequests: number;
+  availableRooms: number;
 }
