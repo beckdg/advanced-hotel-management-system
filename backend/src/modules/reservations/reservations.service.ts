@@ -1,8 +1,9 @@
-import { Prisma, ReservationStatus, RoomStatus } from '@prisma/client';
+import { MaintenanceStatus, Prisma, ReservationStatus, RoomStatus } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { AppError } from '../../common/errors';
 import { HTTP_STATUS } from '../../common/constants';
 import { createAuditLog } from '../../common/utils';
+import { assertRoomAvailableForReservation } from '../../common/utils/roomAvailability';
 import { OVERLAP_BLOCKING_STATUSES, validateStatusTransition } from './reservation.state';
 import {
   CreateReservationInput,
@@ -96,6 +97,7 @@ export async function createReservation(
 ) {
   await validateRoomBelongsToHotel(input.hotelId, input.roomId);
   await validateGuestsExist(input.guestIds);
+  await assertRoomAvailableForReservation(input.roomId);
 
   const status = input.status ?? ReservationStatus.PENDING;
 
@@ -179,6 +181,9 @@ export async function updateReservation(
 
   if (input.roomId) {
     await validateRoomBelongsToHotel(existing.hotelId, input.roomId);
+    await assertRoomAvailableForReservation(input.roomId);
+  } else if (input.checkInDate || input.checkOutDate || input.status) {
+    await assertRoomAvailableForReservation(roomId);
   }
 
   if (input.status) {
@@ -293,7 +298,14 @@ export async function checkOutReservation(id: string, actorId: string, ipAddress
 }
 
 export async function getDashboardMetrics() {
-  const [totalRooms, activeReservations, occupiedRooms] = await Promise.all([
+  const [
+    totalRooms,
+    activeReservations,
+    occupiedRooms,
+    dirtyRooms,
+    activeMaintenanceRequests,
+    availableRooms,
+  ] = await Promise.all([
     prisma.room.count(),
     prisma.reservation.count({
       where: {
@@ -301,7 +313,27 @@ export async function getDashboardMetrics() {
       },
     }),
     prisma.room.count({ where: { status: RoomStatus.OCCUPIED } }),
+    prisma.room.count({ where: { status: RoomStatus.DIRTY } }),
+    prisma.maintenanceRequest.count({
+      where: {
+        status: {
+          in: [
+            MaintenanceStatus.OPEN,
+            MaintenanceStatus.ASSIGNED,
+            MaintenanceStatus.IN_PROGRESS,
+          ],
+        },
+      },
+    }),
+    prisma.room.count({ where: { status: RoomStatus.AVAILABLE } }),
   ]);
 
-  return { totalRooms, activeReservations, occupiedRooms };
+  return {
+    totalRooms,
+    activeReservations,
+    occupiedRooms,
+    dirtyRooms,
+    activeMaintenanceRequests,
+    availableRooms,
+  };
 }

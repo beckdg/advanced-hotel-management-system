@@ -31,6 +31,10 @@ const PERMISSION_DESCRIPTIONS: Record<string, string> = {
   'rooms.write': 'Manage rooms and room types',
   'amenities.read': 'View amenities',
   'amenities.write': 'Manage amenities',
+  'housekeeping.read': 'View housekeeping tasks',
+  'housekeeping.write': 'Manage housekeeping tasks',
+  'maintenance.read': 'View maintenance requests',
+  'maintenance.write': 'Manage maintenance requests',
   'billing.read': 'View billing records',
   'billing.update': 'Manage billing records',
 };
