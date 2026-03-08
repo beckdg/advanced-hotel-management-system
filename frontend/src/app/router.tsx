@@ -9,6 +9,8 @@ import { HotelsPage } from '@/pages/HotelsPage';
 import { RoomsPage } from '@/pages/RoomsPage';
 import { GuestsPage } from '@/pages/GuestsPage';
 import { ReservationsPage } from '@/pages/ReservationsPage';
+import { HousekeepingPage } from '@/pages/HousekeepingPage';
+import { MaintenancePage } from '@/pages/MaintenancePage';
 
 export const router = createBrowserRouter([
   {
@@ -49,6 +51,14 @@ export const router = createBrowserRouter([
           {
             path: 'reservations',
             element: <ReservationsPage />,
+          },
+          {
+            path: 'housekeeping',
+            element: <HousekeepingPage />,
+          },
+          {
+            path: 'maintenance',
+            element: <MaintenancePage />,
           },
         ],
       },
