@@ -18,6 +18,8 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Rooms', to: '/rooms', permission: 'rooms.read', icon: '▣' },
   { label: 'Guests', to: '/guests', permission: 'guests.read', icon: '◎' },
   { label: 'Reservations', to: '/reservations', permission: 'reservations.read', icon: '☰' },
+  { label: 'Housekeeping', to: '/housekeeping', permission: 'housekeeping.read', icon: '✦' },
+  { label: 'Maintenance', to: '/maintenance', permission: 'maintenance.read', icon: '⚙' },
 ];
 
 export function ProtectedNavigation({ variant = 'sidebar' }: ProtectedNavigationProps) {
