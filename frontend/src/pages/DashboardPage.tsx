@@ -14,6 +14,15 @@ export function DashboardPage() {
 
   const metrics = metricsData?.data;
 
+  const primaryCards = [
+    { label: 'Total Rooms', value: metrics?.totalRooms, color: 'text-slate-900' },
+    { label: 'Available Rooms', value: metrics?.availableRooms, color: 'text-green-600' },
+    { label: 'Occupied Rooms', value: metrics?.occupiedRooms, color: 'text-blue-600' },
+    { label: 'Dirty Rooms', value: metrics?.dirtyRooms, color: 'text-orange-600' },
+    { label: 'Active Reservations', value: metrics?.activeReservations, color: 'text-purple-600', hint: 'Confirmed + Checked In' },
+    { label: 'Active Maintenance', value: metrics?.activeMaintenanceRequests, color: 'text-red-600' },
+  ];
+
   return (
     <section>
       <PageHeader
@@ -22,25 +31,20 @@ export function DashboardPage() {
       />
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-sm font-medium text-slate-500">Total Rooms</h2>
-          <p className="mt-2 text-3xl font-semibold text-slate-900">
-            {isLoading ? '—' : metrics?.totalRooms ?? 0}
-          </p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-sm font-medium text-slate-500">Active Reservations</h2>
-          <p className="mt-2 text-3xl font-semibold text-blue-600">
-            {isLoading ? '—' : metrics?.activeReservations ?? 0}
-          </p>
-          <p className="mt-1 text-xs text-slate-400">Confirmed + Checked In</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-sm font-medium text-slate-500">Occupied Rooms</h2>
-          <p className="mt-2 text-3xl font-semibold text-green-600">
-            {isLoading ? '—' : metrics?.occupiedRooms ?? 0}
-          </p>
-        </div>
+        {primaryCards.map((card) => (
+          <div
+            key={card.label}
+            className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+          >
+            <h2 className="text-sm font-medium text-slate-500">{card.label}</h2>
+            <p className={`mt-2 text-3xl font-semibold ${card.color}`}>
+              {isLoading ? '—' : card.value ?? 0}
+            </p>
+            {'hint' in card && card.hint && (
+              <p className="mt-1 text-xs text-slate-400">{card.hint}</p>
+            )}
+          </div>
+        ))}
       </div>
 
       <div className="mt-8 grid gap-6 sm:grid-cols-2">
