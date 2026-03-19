@@ -4,6 +4,21 @@ import { AppError } from '../../common/errors';
 import { HTTP_STATUS } from '../../common/constants';
 import { createAuditLog } from '../../common/utils';
 import { assertRoomAvailableForReservation } from '../../common/utils/roomAvailability';
+import {
+  assertReservationInvoicePaid,
+  generateDraftInvoiceForReservation,
+  getBillingMetrics,
+} from '../billing';
+import { getRecentAuditLogs } from '../audit';
+import {
+  getRecentNotifications,
+  getUnreadCount,
+  notifyCheckIn,
+  notifyCheckOut,
+  notifyReservationConfirmed,
+  notifyReservationCreated,
+} from '../notifications';
+import { PERMISSIONS } from '../rbac/rbac.constants';
 import { OVERLAP_BLOCKING_STATUSES, validateStatusTransition } from './reservation.state';
 import {
   CreateReservationInput,
@@ -105,18 +120,26 @@ export async function createReservation(
     await checkOverlappingReservations(input.roomId, input.checkInDate, input.checkOutDate);
   }
 
-  const reservation = await prisma.reservation.create({
-    data: {
-      hotelId: input.hotelId,
-      roomId: input.roomId,
-      checkInDate: input.checkInDate,
-      checkOutDate: input.checkOutDate,
-      status,
-      totalGuests: input.totalGuests,
-      notes: input.notes,
-      guests: { create: buildGuestAssociations(input.guestIds) },
-    },
-    include: reservationInclude,
+  const reservation = await prisma.$transaction(async (tx) => {
+    const created = await tx.reservation.create({
+      data: {
+        hotelId: input.hotelId,
+        roomId: input.roomId,
+        checkInDate: input.checkInDate,
+        checkOutDate: input.checkOutDate,
+        status,
+        totalGuests: input.totalGuests,
+        notes: input.notes,
+        guests: { create: buildGuestAssociations(input.guestIds) },
+      },
+      include: reservationInclude,
+    });
+
+    if (status === ReservationStatus.CONFIRMED) {
+      await generateDraftInvoiceForReservation(created.id, tx);
+    }
+
+    return created;
   });
 
   await createAuditLog({
@@ -126,6 +149,12 @@ export async function createReservation(
     entityId: reservation.id,
     ipAddress,
   });
+
+  await notifyReservationCreated(actorId, reservation.id, reservation.room.roomNumber);
+
+  if (reservation.status === ReservationStatus.CONFIRMED) {
+    await notifyReservationConfirmed(actorId, reservation.id, reservation.room.roomNumber);
+  }
 
   return reservation;
 }
@@ -215,11 +244,20 @@ export async function updateReservation(
       });
     }
 
-    return tx.reservation.update({
+    const updated = await tx.reservation.update({
       where: { id },
       data: { ...updateData, ...(status ? { status } : {}) },
       include: reservationInclude,
     });
+
+    if (
+      status === ReservationStatus.CONFIRMED &&
+      existing.status !== ReservationStatus.CONFIRMED
+    ) {
+      await generateDraftInvoiceForReservation(id, tx);
+    }
+
+    return updated;
   });
 
   await createAuditLog({
@@ -229,6 +267,13 @@ export async function updateReservation(
     entityId: id,
     ipAddress,
   });
+
+  if (
+    input.status === ReservationStatus.CONFIRMED &&
+    existing.status !== ReservationStatus.CONFIRMED
+  ) {
+    await notifyReservationConfirmed(actorId, id, reservation.room.roomNumber);
+  }
 
   return reservation;
 }
@@ -262,6 +307,8 @@ export async function checkInReservation(id: string, actorId: string, ipAddress?
     ipAddress,
   });
 
+  await notifyCheckIn(actorId, id, reservation.room.roomNumber);
+
   return reservation;
 }
 
@@ -272,6 +319,7 @@ export async function checkOutReservation(id: string, actorId: string, ipAddress
   }
 
   validateStatusTransition(existing.status, ReservationStatus.CHECKED_OUT);
+  await assertReservationInvoicePaid(id);
 
   const reservation = await prisma.$transaction(async (tx) => {
     await tx.room.update({
@@ -294,10 +342,12 @@ export async function checkOutReservation(id: string, actorId: string, ipAddress
     ipAddress,
   });
 
+  await notifyCheckOut(actorId, id, reservation.room.roomNumber);
+
   return reservation;
 }
 
-export async function getDashboardMetrics() {
+export async function getDashboardMetrics(userId: string, permissions: string[] = []) {
   const [
     totalRooms,
     activeReservations,
@@ -305,6 +355,10 @@ export async function getDashboardMetrics() {
     dirtyRooms,
     activeMaintenanceRequests,
     availableRooms,
+    billingMetrics,
+    recentNotifications,
+    unreadCount,
+    recentAudit,
   ] = await Promise.all([
     prisma.room.count(),
     prisma.reservation.count({
@@ -326,6 +380,10 @@ export async function getDashboardMetrics() {
       },
     }),
     prisma.room.count({ where: { status: RoomStatus.AVAILABLE } }),
+    getBillingMetrics(),
+    getRecentNotifications(userId, 5),
+    getUnreadCount(userId),
+    permissions.includes(PERMISSIONS.AUDIT_READ) ? getRecentAuditLogs(5) : Promise.resolve([]),
   ]);
 
   return {
@@ -335,5 +393,11 @@ export async function getDashboardMetrics() {
     dirtyRooms,
     activeMaintenanceRequests,
     availableRooms,
+    totalRevenue: billingMetrics.totalRevenue,
+    outstandingInvoices: billingMetrics.outstandingInvoices,
+    paidInvoices: billingMetrics.paidInvoices,
+    recentNotifications,
+    unreadNotifications: unreadCount,
+    recentAuditActivity: recentAudit,
   };
 }
