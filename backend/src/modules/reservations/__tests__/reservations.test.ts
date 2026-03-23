@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { ReservationStatus, RoomStatus } from '@prisma/client';
+import { InvoiceStatus, ReservationStatus, RoomStatus } from '@prisma/client';
 import { createApp } from '../../../app';
 import { signAccessToken } from '../../../common/utils/jwt';
 import {
@@ -27,11 +27,27 @@ jest.mock('../../../config/database', () => ({
       createMany: jest.fn(),
     },
     maintenanceRequest: { findFirst: jest.fn() },
+    invoice: { findUnique: jest.fn(), create: jest.fn() },
     auditLog: { create: jest.fn() },
     $transaction: jest.fn(),
   },
   connectDatabase: jest.fn(),
   disconnectDatabase: jest.fn(),
+}));
+
+jest.mock('../../notifications', () => ({
+  ...jest.requireActual('../../notifications'),
+  notifyReservationCreated: jest.fn(),
+  notifyReservationConfirmed: jest.fn(),
+  notifyCheckIn: jest.fn(),
+  notifyCheckOut: jest.fn(),
+  getRecentNotifications: jest.fn().mockResolvedValue([]),
+  getUnreadCount: jest.fn().mockResolvedValue(0),
+}));
+
+jest.mock('../../audit', () => ({
+  ...jest.requireActual('../../audit'),
+  getRecentAuditLogs: jest.fn().mockResolvedValue([]),
 }));
 
 jest.mock('../../rbac/rbac.service', () => ({
@@ -109,7 +125,13 @@ describe('Reservations API', () => {
 
   describe('POST /api/reservations', () => {
     it('should create a reservation', async () => {
-      (mockPrisma.reservation.create as jest.Mock).mockResolvedValue(mockReservation);
+      (mockPrisma.$transaction as jest.Mock).mockImplementation(async (fn) =>
+        fn({
+          reservation: {
+            create: jest.fn().mockResolvedValue(mockReservation),
+          },
+        }),
+      );
 
       const response = await request(app)
         .post('/api/reservations')
@@ -204,6 +226,29 @@ describe('Reservations API', () => {
               ...mockReservation,
               status: ReservationStatus.CONFIRMED,
             }),
+            findUnique: jest.fn().mockResolvedValue({
+              id: mockReservationId,
+              checkInDate: new Date('2026-07-01'),
+              checkOutDate: new Date('2026-07-05'),
+              room: { roomType: { name: 'Standard', baseRate: 100 } },
+            }),
+          },
+          invoice: {
+            findUnique: jest
+              .fn()
+              .mockResolvedValueOnce(null)
+              .mockResolvedValueOnce({
+                id: 'invoice-1',
+                taxAmount: 0,
+                discountAmount: 0,
+                items: [{ totalPrice: 400 }],
+              }),
+            create: jest.fn().mockResolvedValue({ id: 'invoice-1' }),
+            update: jest.fn().mockResolvedValue({
+              id: 'invoice-1',
+              subtotal: 400,
+              totalAmount: 400,
+            }),
           },
         }),
       );
@@ -284,6 +329,10 @@ describe('Reservations API', () => {
       (mockPrisma.reservation.findUnique as jest.Mock).mockResolvedValue({
         ...mockReservation,
         status: ReservationStatus.CHECKED_IN,
+      });
+      (mockPrisma.invoice.findUnique as jest.Mock).mockResolvedValue({
+        id: 'invoice-1',
+        status: InvoiceStatus.PAID,
       });
 
       const roomUpdate = jest.fn();
