@@ -4,6 +4,7 @@ import { AppError } from '../../common/errors';
 import { HTTP_STATUS } from '../../common/constants';
 import { createAuditLog } from '../../common/utils';
 import { validateHousekeepingTransition } from './housekeeping.state';
+import { notifyHousekeepingAssigned } from '../notifications';
 import {
   CreateHousekeepingTaskInput,
   UpdateHousekeepingTaskInput,
@@ -70,6 +71,14 @@ export async function createHousekeepingTask(
     entityId: task.id,
     ipAddress,
   });
+
+  if (task.assignedToUserId) {
+    await notifyHousekeepingAssigned(
+      task.assignedToUserId,
+      task.id,
+      task.room.roomNumber,
+    );
+  }
 
   return task;
 }
@@ -145,6 +154,17 @@ export async function updateHousekeepingTask(
     entityId: id,
     ipAddress,
   });
+
+  if (
+    input.assignedToUserId &&
+    input.assignedToUserId !== existing.assignedToUserId
+  ) {
+    await notifyHousekeepingAssigned(
+      input.assignedToUserId,
+      task.id,
+      task.room.roomNumber,
+    );
+  }
 
   return task;
 }
