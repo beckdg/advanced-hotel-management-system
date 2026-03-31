@@ -8,6 +8,7 @@ import {
   validateMaintenanceTransition,
   MAINTENANCE_OUT_OF_SERVICE_STATUSES,
 } from './maintenance.state';
+import { notifyMaintenanceAssigned } from '../notifications';
 import {
   CreateMaintenanceInput,
   UpdateMaintenanceInput,
@@ -218,13 +219,13 @@ async function transitionMaintenance(
   return request;
 }
 
-export function assignMaintenanceRequest(
+export async function assignMaintenanceRequest(
   id: string,
   assignedToUserId: string,
   actorId: string,
   ipAddress?: string,
 ) {
-  return transitionMaintenance(
+  const request = await transitionMaintenance(
     id,
     MaintenanceStatus.ASSIGNED,
     actorId,
@@ -232,6 +233,10 @@ export function assignMaintenanceRequest(
     { assignedToUserId },
     ipAddress,
   );
+
+  await notifyMaintenanceAssigned(assignedToUserId, request.id, request.title);
+
+  return request;
 }
 
 export function startMaintenanceRequest(id: string, actorId: string, ipAddress?: string) {
