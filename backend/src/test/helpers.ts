@@ -27,6 +27,7 @@ export const mockFloorId = 'floor-test-id';
 export const mockRoomTypeId = 'room-type-test-id';
 export const mockRoomId = 'room-test-id';
 export const mockAmenityId = 'amenity-test-id';
+export const mockReservationId = 'reservation-test-id';
 
 export const mockHotel = {
   id: mockHotelId,

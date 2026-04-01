@@ -11,6 +11,8 @@ import { GuestsPage } from '@/pages/GuestsPage';
 import { ReservationsPage } from '@/pages/ReservationsPage';
 import { HousekeepingPage } from '@/pages/HousekeepingPage';
 import { MaintenancePage } from '@/pages/MaintenancePage';
+import { BillingPage } from '@/pages/BillingPage';
+import { InvoicesPage } from '@/pages/InvoicesPage';
 
 export const router = createBrowserRouter([
   {
@@ -59,6 +61,14 @@ export const router = createBrowserRouter([
           {
             path: 'maintenance',
             element: <MaintenancePage />,
+          },
+          {
+            path: 'billing',
+            element: <BillingPage />,
+          },
+          {
+            path: 'invoices',
+            element: <InvoicesPage />,
           },
         ],
       },
