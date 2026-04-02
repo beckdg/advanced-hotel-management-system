@@ -68,22 +68,6 @@ enum PaymentMethod {
   BANK_TRANSFER
 }
 
-enum NotificationType {
-  RESERVATION_CREATED
-  RESERVATION_CONFIRMED
-  CHECK_IN
-  CHECK_OUT
-  PAYMENT_RECEIVED
-  MAINTENANCE_ASSIGNED
-  HOUSEKEEPING_ASSIGNED
-}
-
-enum NotificationChannel {
-  IN_APP
-  EMAIL
-  SMS
-}
-
 model User {
   id            String         @id @default(uuid())
   email         String         @unique
@@ -99,8 +83,6 @@ model User {
   assignedHousekeepingTasks HousekeepingTask[]     @relation("AssignedHousekeeping")
   reportedMaintenance      MaintenanceRequest[]   @relation("ReportedMaintenance")
   assignedMaintenance      MaintenanceRequest[]   @relation("AssignedMaintenance")
-  notifications            Notification[]
-  notificationPreference   NotificationPreference?
 
   @@map("users")
 }
@@ -163,40 +145,7 @@ model AuditLog {
   createdAt DateTime @default(now())
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  @@index([userId])
-  @@index([entity])
-  @@index([action])
-  @@index([createdAt])
   @@map("audit_logs")
-}
-
-model Notification {
-  id        String              @id @default(uuid())
-  userId    String
-  type      NotificationType
-  channel   NotificationChannel @default(IN_APP)
-  title     String
-  message   String
-  readAt    DateTime?
-  createdAt DateTime            @default(now())
-  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([readAt])
-  @@map("notifications")
-}
-
-model NotificationPreference {
-  id           String   @id @default(uuid())
-  userId       String   @unique
-  emailEnabled Boolean  @default(true)
-  smsEnabled   Boolean  @default(false)
-  inAppEnabled Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("notification_preferences")
 }
 
 model Hotel {
