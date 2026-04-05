@@ -15,7 +15,6 @@ import {
   CHECKOUT_BLOCKING_INVOICE_STATUSES,
   validateInvoiceTransition,
 } from './billing.state';
-import { notifyPaymentReceived } from '../notifications';
 import {
   CreateInvoiceInput,
   CreateInvoiceItemInput,
@@ -412,8 +411,6 @@ export async function recordPayment(
     entityId: invoiceId,
     ipAddress,
   });
-
-  await notifyPaymentReceived(actorId, invoiceId, input.amount);
 
   return invoice;
 }
