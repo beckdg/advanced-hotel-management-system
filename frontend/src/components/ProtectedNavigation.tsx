@@ -20,6 +20,8 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Reservations', to: '/reservations', permission: 'reservations.read', icon: '☰' },
   { label: 'Housekeeping', to: '/housekeeping', permission: 'housekeeping.read', icon: '✦' },
   { label: 'Maintenance', to: '/maintenance', permission: 'maintenance.read', icon: '⚙' },
+  { label: 'Billing', to: '/billing', permission: 'billing.read', icon: '$' },
+  { label: 'Invoices', to: '/invoices', permission: 'billing.read', icon: '₿' },
 ];
 
 export function ProtectedNavigation({ variant = 'sidebar' }: ProtectedNavigationProps) {
