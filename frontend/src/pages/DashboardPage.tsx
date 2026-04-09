@@ -21,6 +21,13 @@ export function DashboardPage() {
     { label: 'Dirty Rooms', value: metrics?.dirtyRooms, color: 'text-orange-600' },
     { label: 'Active Reservations', value: metrics?.activeReservations, color: 'text-purple-600', hint: 'Confirmed + Checked In' },
     { label: 'Active Maintenance', value: metrics?.activeMaintenanceRequests, color: 'text-red-600' },
+    {
+      label: 'Total Revenue',
+      value: metrics?.totalRevenue != null ? `$${metrics.totalRevenue.toFixed(2)}` : undefined,
+      color: 'text-green-600',
+    },
+    { label: 'Outstanding Invoices', value: metrics?.outstandingInvoices, color: 'text-orange-600' },
+    { label: 'Paid Invoices', value: metrics?.paidInvoices, color: 'text-blue-600' },
   ];
 
   return (

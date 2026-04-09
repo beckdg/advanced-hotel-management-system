@@ -35,21 +35,6 @@ jest.mock('../../../config/database', () => ({
   disconnectDatabase: jest.fn(),
 }));
 
-jest.mock('../../notifications', () => ({
-  ...jest.requireActual('../../notifications'),
-  notifyReservationCreated: jest.fn(),
-  notifyReservationConfirmed: jest.fn(),
-  notifyCheckIn: jest.fn(),
-  notifyCheckOut: jest.fn(),
-  getRecentNotifications: jest.fn().mockResolvedValue([]),
-  getUnreadCount: jest.fn().mockResolvedValue(0),
-}));
-
-jest.mock('../../audit', () => ({
-  ...jest.requireActual('../../audit'),
-  getRecentAuditLogs: jest.fn().mockResolvedValue([]),
-}));
-
 jest.mock('../../rbac/rbac.service', () => ({
   getAuthUserById: jest.fn(),
   mapUserToAuthUser: jest.requireActual('../../rbac/rbac.service').mapUserToAuthUser,
