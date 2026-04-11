@@ -15,6 +15,14 @@ import type {
   MaintenanceRequest,
   CreateMaintenanceInput,
 } from '@/types/operations';
+import type {
+  Invoice,
+  Payment,
+  CreateInvoiceItemInput,
+  RecordPaymentInput,
+  InvoiceFilters,
+  PaymentFilters,
+} from '@/types/billing';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001';
 
@@ -290,6 +298,60 @@ class ApiClient {
     return this.request<ApiSuccessResponse<MaintenanceRequest>>(`/api/maintenance/${id}/close`, {
       method: 'POST',
     });
+  }
+
+  async getInvoices(filters?: InvoiceFilters): Promise<ApiSuccessResponse<Invoice[]>> {
+    const params = new URLSearchParams();
+    if (filters?.status) params.set('status', filters.status);
+    if (filters?.reservationId) params.set('reservationId', filters.reservationId);
+    if (filters?.guestId) params.set('guestId', filters.guestId);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<ApiSuccessResponse<Invoice[]>>(`/api/invoices${query}`);
+  }
+
+  async getInvoice(id: string): Promise<ApiSuccessResponse<Invoice>> {
+    return this.request<ApiSuccessResponse<Invoice>>(`/api/invoices/${id}`);
+  }
+
+  async issueInvoice(id: string): Promise<ApiSuccessResponse<Invoice>> {
+    return this.request<ApiSuccessResponse<Invoice>>(`/api/invoices/${id}/issue`, {
+      method: 'POST',
+    });
+  }
+
+  async voidInvoice(id: string): Promise<ApiSuccessResponse<Invoice>> {
+    return this.request<ApiSuccessResponse<Invoice>>(`/api/invoices/${id}/void`, {
+      method: 'POST',
+    });
+  }
+
+  async recordPayment(
+    id: string,
+    input: RecordPaymentInput,
+  ): Promise<ApiSuccessResponse<Invoice>> {
+    return this.request<ApiSuccessResponse<Invoice>>(`/api/invoices/${id}/pay`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async addInvoiceItem(
+    id: string,
+    input: CreateInvoiceItemInput,
+  ): Promise<ApiSuccessResponse<Invoice>> {
+    return this.request<ApiSuccessResponse<Invoice>>(`/api/invoices/${id}/items`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async getPayments(filters?: PaymentFilters): Promise<ApiSuccessResponse<Payment[]>> {
+    const params = new URLSearchParams();
+    if (filters?.status) params.set('status', filters.status);
+    if (filters?.reservationId) params.set('reservationId', filters.reservationId);
+    if (filters?.guestId) params.set('guestId', filters.guestId);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<ApiSuccessResponse<Payment[]>>(`/api/payments${query}`);
   }
 }
 
