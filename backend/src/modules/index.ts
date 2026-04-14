@@ -10,6 +10,7 @@ import { reservationsRouter } from './reservations';
 import { dashboardRouter } from './dashboard';
 import { housekeepingRouter } from './housekeeping';
 import { maintenanceRouter } from './maintenance';
+import { invoicesRouter, invoiceItemsRouter, paymentsRouter } from './billing';
 
 const router = Router();
 
@@ -25,5 +26,8 @@ router.use('/api/reservations', reservationsRouter);
 router.use('/api/dashboard', dashboardRouter);
 router.use('/api/housekeeping', housekeepingRouter);
 router.use('/api/maintenance', maintenanceRouter);
+router.use('/api/invoices', invoicesRouter);
+router.use('/api/invoice-items', invoiceItemsRouter);
+router.use('/api/payments', paymentsRouter);
 
 export { router as apiRouter };

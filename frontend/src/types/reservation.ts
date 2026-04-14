@@ -1,5 +1,3 @@
-import type { AuditLog, Notification } from '@/types/notifications';
-
 export type ReservationStatus =
   | 'PENDING'
   | 'CONFIRMED'
@@ -80,7 +78,4 @@ export interface DashboardMetrics {
   totalRevenue: number;
   outstandingInvoices: number;
   paidInvoices: number;
-  recentNotifications: Notification[];
-  unreadNotifications: number;
-  recentAuditActivity: AuditLog[];
 }
