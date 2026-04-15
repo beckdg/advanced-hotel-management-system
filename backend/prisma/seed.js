@@ -20,7 +20,7 @@ const PERMISSION_DESCRIPTIONS = {
     'rooms.read': 'View room status',
     'rooms.update': 'Manage room status',
     'billing.read': 'View billing records',
-    'billing.update': 'Manage billing records',
+    'billing.write': 'Manage billing records',
 };
 async function main() {
     console.log('Seeding database...');
