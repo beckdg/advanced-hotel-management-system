@@ -36,7 +36,7 @@ const PERMISSION_DESCRIPTIONS: Record<string, string> = {
   'maintenance.read': 'View maintenance requests',
   'maintenance.write': 'Manage maintenance requests',
   'billing.read': 'View billing records',
-  'billing.update': 'Manage billing records',
+  'billing.write': 'Manage billing records',
 };
 
 async function seedRolesAndPermissions() {

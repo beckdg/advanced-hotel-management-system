@@ -9,16 +9,6 @@ import {
   generateDraftInvoiceForReservation,
   getBillingMetrics,
 } from '../billing';
-import { getRecentAuditLogs } from '../audit';
-import {
-  getRecentNotifications,
-  getUnreadCount,
-  notifyCheckIn,
-  notifyCheckOut,
-  notifyReservationConfirmed,
-  notifyReservationCreated,
-} from '../notifications';
-import { PERMISSIONS } from '../rbac/rbac.constants';
 import { OVERLAP_BLOCKING_STATUSES, validateStatusTransition } from './reservation.state';
 import {
   CreateReservationInput,
@@ -150,12 +140,6 @@ export async function createReservation(
     ipAddress,
   });
 
-  await notifyReservationCreated(actorId, reservation.id, reservation.room.roomNumber);
-
-  if (reservation.status === ReservationStatus.CONFIRMED) {
-    await notifyReservationConfirmed(actorId, reservation.id, reservation.room.roomNumber);
-  }
-
   return reservation;
 }
 
@@ -268,13 +252,6 @@ export async function updateReservation(
     ipAddress,
   });
 
-  if (
-    input.status === ReservationStatus.CONFIRMED &&
-    existing.status !== ReservationStatus.CONFIRMED
-  ) {
-    await notifyReservationConfirmed(actorId, id, reservation.room.roomNumber);
-  }
-
   return reservation;
 }
 
@@ -306,8 +283,6 @@ export async function checkInReservation(id: string, actorId: string, ipAddress?
     entityId: id,
     ipAddress,
   });
-
-  await notifyCheckIn(actorId, id, reservation.room.roomNumber);
 
   return reservation;
 }
@@ -342,12 +317,10 @@ export async function checkOutReservation(id: string, actorId: string, ipAddress
     ipAddress,
   });
 
-  await notifyCheckOut(actorId, id, reservation.room.roomNumber);
-
   return reservation;
 }
 
-export async function getDashboardMetrics(userId: string, permissions: string[] = []) {
+export async function getDashboardMetrics() {
   const [
     totalRooms,
     activeReservations,
@@ -356,9 +329,6 @@ export async function getDashboardMetrics(userId: string, permissions: string[] 
     activeMaintenanceRequests,
     availableRooms,
     billingMetrics,
-    recentNotifications,
-    unreadCount,
-    recentAudit,
   ] = await Promise.all([
     prisma.room.count(),
     prisma.reservation.count({
@@ -381,9 +351,6 @@ export async function getDashboardMetrics(userId: string, permissions: string[] 
     }),
     prisma.room.count({ where: { status: RoomStatus.AVAILABLE } }),
     getBillingMetrics(),
-    getRecentNotifications(userId, 5),
-    getUnreadCount(userId),
-    permissions.includes(PERMISSIONS.AUDIT_READ) ? getRecentAuditLogs(5) : Promise.resolve([]),
   ]);
 
   return {
@@ -396,8 +363,5 @@ export async function getDashboardMetrics(userId: string, permissions: string[] 
     totalRevenue: billingMetrics.totalRevenue,
     outstandingInvoices: billingMetrics.outstandingInvoices,
     paidInvoices: billingMetrics.paidInvoices,
-    recentNotifications,
-    unreadNotifications: unreadCount,
-    recentAuditActivity: recentAudit,
   };
 }
