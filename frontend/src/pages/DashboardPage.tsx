@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
 import { PageHeader } from '@/components/PageHeader';
+import { NotificationCenter } from '@/components/NotificationCenter';
+import { AuditLogTable } from '@/components/AuditLogTable';
 import { apiClient } from '@/services/api';
 
 export function DashboardPage() {
@@ -52,6 +54,26 @@ export function DashboardPage() {
             )}
           </div>
         ))}
+      </div>
+
+      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-sm font-medium text-slate-500">Recent Notifications</h2>
+          <div className="mt-4">
+            <NotificationCenter
+              notifications={metrics?.recentNotifications ?? []}
+              unreadCount={metrics?.unreadNotifications}
+              compact
+            />
+          </div>
+        </div>
+
+        {user?.permissions.includes('audit.read') && (
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-sm font-medium text-slate-500 mb-4">Recent Audit Activity</h2>
+            <AuditLogTable logs={metrics?.recentAuditActivity ?? []} />
+          </div>
+        )}
       </div>
 
       <div className="mt-8 grid gap-6 sm:grid-cols-2">
