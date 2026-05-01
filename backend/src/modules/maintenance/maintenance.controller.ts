@@ -1,8 +1,10 @@
 import { Request, Response } from 'express';
+import { parsePaginationQuery } from '../../common/pagination';
 import {
   validateCreateMaintenanceInput,
   validateUpdateMaintenanceInput,
   validateAssignMaintenanceInput,
+  validateBulkAssignMaintenanceInput,
 } from './maintenance.validators';
 import {
   createMaintenanceRequest,
@@ -13,6 +15,8 @@ import {
   startMaintenanceRequest,
   resolveMaintenanceRequest,
   closeMaintenanceRequest,
+  bulkAssignMaintenanceRequests,
+  MAINTENANCE_SORT_FIELDS,
 } from './maintenance.service';
 
 function getIpAddress(req: Request): string | undefined {
@@ -25,8 +29,24 @@ export async function create(req: Request, res: Response): Promise<void> {
   res.status(201).json({ status: 'success', data: request });
 }
 
-export async function getAll(_req: Request, res: Response): Promise<void> {
-  const requests = await listMaintenanceRequests();
+export async function getAll(req: Request, res: Response): Promise<void> {
+  const pagination = parsePaginationQuery(
+    req.query as Record<string, unknown>,
+    [...MAINTENANCE_SORT_FIELDS],
+    'createdAt',
+  );
+  const result = await listMaintenanceRequests(pagination);
+  res.status(200).json({ status: 'success', ...result });
+}
+
+export async function bulkAssign(req: Request, res: Response): Promise<void> {
+  const input = validateBulkAssignMaintenanceInput(req.body);
+  const requests = await bulkAssignMaintenanceRequests(
+    input.requestIds,
+    input.assignedToUserId,
+    req.user!.id,
+    getIpAddress(req),
+  );
   res.status(200).json({ status: 'success', data: requests });
 }
 
