@@ -1,6 +1,9 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
+import { PaginationParams, paginate } from '../../common/pagination';
 import { AuditLogFilterQuery } from './audit.validators';
+
+export const AUDIT_SORT_FIELDS = ['createdAt', 'action', 'entity'] as const;
 
 export interface AuditLogInput {
   userId?: string;
@@ -44,12 +47,14 @@ function buildAuditWhere(filters: AuditLogFilterQuery): Prisma.AuditLogWhereInpu
   return where;
 }
 
-export async function listAuditLogs(filters: AuditLogFilterQuery, limit = 100) {
-  return prisma.auditLog.findMany({
-    where: buildAuditWhere(filters),
-    include: auditInclude,
-    orderBy: { createdAt: 'desc' },
-    take: limit,
+export async function listAuditLogs(filters: AuditLogFilterQuery, pagination: PaginationParams) {
+  const where = buildAuditWhere(filters);
+  return paginate({
+    pagination,
+    orderBy: { [pagination.sortBy]: pagination.sortOrder },
+    findMany: ({ skip, take, orderBy }) =>
+      prisma.auditLog.findMany({ where, include: auditInclude, orderBy, skip, take }),
+    count: () => prisma.auditLog.count({ where }),
   });
 }
 

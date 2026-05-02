@@ -10,6 +10,7 @@ import {
   start,
   resolve,
   close,
+  bulkAssign,
 } from './maintenance.controller';
 
 const router = Router();
@@ -17,6 +18,7 @@ const router = Router();
 router.use(requireAuth);
 
 router.post('/', requirePermission(PERMISSIONS.MAINTENANCE_WRITE), asyncHandler(create));
+router.post('/bulk-assign', requirePermission(PERMISSIONS.MAINTENANCE_WRITE), asyncHandler(bulkAssign));
 router.get('/', requirePermission(PERMISSIONS.MAINTENANCE_READ), asyncHandler(getAll));
 router.get('/:id', requirePermission(PERMISSIONS.MAINTENANCE_READ), asyncHandler(getById));
 router.patch('/:id', requirePermission(PERMISSIONS.MAINTENANCE_WRITE), asyncHandler(update));
