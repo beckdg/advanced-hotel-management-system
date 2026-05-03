@@ -9,10 +9,13 @@ import {
   MAINTENANCE_OUT_OF_SERVICE_STATUSES,
 } from './maintenance.state';
 import { notifyMaintenanceAssigned } from '../notifications';
+import { PaginationParams, paginate } from '../../common/pagination';
 import {
   CreateMaintenanceInput,
   UpdateMaintenanceInput,
 } from './maintenance.validators';
+
+export const MAINTENANCE_SORT_FIELDS = ['priority', 'status', 'createdAt', 'title'] as const;
 
 const requestInclude = {
   room: {
@@ -79,11 +82,59 @@ export async function createMaintenanceRequest(
   return request;
 }
 
-export async function listMaintenanceRequests() {
-  return prisma.maintenanceRequest.findMany({
-    include: requestInclude,
-    orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+export async function listMaintenanceRequests(pagination: PaginationParams) {
+  return paginate({
+    pagination,
+    orderBy: { [pagination.sortBy]: pagination.sortOrder },
+    findMany: ({ skip, take, orderBy }) =>
+      prisma.maintenanceRequest.findMany({ include: requestInclude, orderBy, skip, take }),
+    count: () => prisma.maintenanceRequest.count(),
   });
+}
+
+export async function bulkAssignMaintenanceRequests(
+  requestIds: string[],
+  assignedToUserId: string,
+  actorId: string,
+  ipAddress?: string,
+) {
+  await validateUserExists(assignedToUserId);
+
+  const requests = await prisma.maintenanceRequest.findMany({
+    where: { id: { in: requestIds } },
+  });
+
+  if (requests.length !== requestIds.length) {
+    throw new AppError('One or more maintenance requests not found', HTTP_STATUS.BAD_REQUEST, {
+      code: 'MAINTENANCE_NOT_FOUND',
+    });
+  }
+
+  const results = [];
+  for (const request of requests) {
+    if (request.status === MaintenanceStatus.OPEN) {
+      results.push(
+        await assignMaintenanceRequest(request.id, assignedToUserId, actorId, ipAddress),
+      );
+    } else if (request.assignedToUserId !== assignedToUserId) {
+      results.push(
+        await prisma.maintenanceRequest.update({
+          where: { id: request.id },
+          data: { assignedToUserId },
+          include: requestInclude,
+        }),
+      );
+    } else {
+      results.push(
+        await prisma.maintenanceRequest.findUnique({
+          where: { id: request.id },
+          include: requestInclude,
+        }),
+      );
+    }
+  }
+
+  return results.filter(Boolean);
 }
 
 export async function getMaintenanceRequestById(id: string) {

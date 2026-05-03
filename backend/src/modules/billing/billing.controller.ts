@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { parsePaginationQuery } from '../../common/pagination';
 import {
   validateCreateInvoiceInput,
   validateUpdateInvoiceInput,
@@ -19,6 +20,8 @@ import {
   deleteInvoiceItem,
   listPayments,
   getPaymentById,
+  INVOICE_SORT_FIELDS,
+  PAYMENT_SORT_FIELDS,
 } from './billing.service';
 
 function getIpAddress(req: Request): string | undefined {
@@ -33,8 +36,13 @@ export async function create(req: Request, res: Response): Promise<void> {
 
 export async function getAll(req: Request, res: Response): Promise<void> {
   const filters = parseInvoiceFilters(req.query as Record<string, unknown>);
-  const invoices = await listInvoices(filters);
-  res.status(200).json({ status: 'success', data: invoices });
+  const pagination = parsePaginationQuery(
+    req.query as Record<string, unknown>,
+    [...INVOICE_SORT_FIELDS],
+    'createdAt',
+  );
+  const result = await listInvoices(filters, pagination);
+  res.status(200).json({ status: 'success', ...result });
 }
 
 export async function getById(req: Request, res: Response): Promise<void> {
@@ -77,8 +85,13 @@ export async function removeItem(req: Request, res: Response): Promise<void> {
 
 export async function getAllPayments(req: Request, res: Response): Promise<void> {
   const filters = parsePaymentFilters(req.query as Record<string, unknown>);
-  const payments = await listPayments(filters);
-  res.status(200).json({ status: 'success', data: payments });
+  const pagination = parsePaginationQuery(
+    req.query as Record<string, unknown>,
+    [...PAYMENT_SORT_FIELDS],
+    'createdAt',
+  );
+  const result = await listPayments(filters, pagination);
+  res.status(200).json({ status: 'success', ...result });
 }
 
 export async function getPayment(req: Request, res: Response): Promise<void> {
