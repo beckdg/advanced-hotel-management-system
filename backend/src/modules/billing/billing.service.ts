@@ -15,6 +15,11 @@ import {
   CHECKOUT_BLOCKING_INVOICE_STATUSES,
   validateInvoiceTransition,
 } from './billing.state';
+import { PaginationParams, paginate } from '../../common/pagination';
+import { notifyPaymentReceived } from '../notifications';
+
+export const INVOICE_SORT_FIELDS = ['status', 'totalAmount', 'createdAt', 'issuedAt'] as const;
+export const PAYMENT_SORT_FIELDS = ['amount', 'status', 'createdAt', 'processedAt'] as const;
 import {
   CreateInvoiceInput,
   CreateInvoiceItemInput,
@@ -228,11 +233,14 @@ function buildInvoiceWhere(filters: InvoiceFilterQuery): Prisma.InvoiceWhereInpu
   return where;
 }
 
-export async function listInvoices(filters: InvoiceFilterQuery) {
-  return prisma.invoice.findMany({
-    where: buildInvoiceWhere(filters),
-    include: invoiceInclude,
-    orderBy: { createdAt: 'desc' },
+export async function listInvoices(filters: InvoiceFilterQuery, pagination: PaginationParams) {
+  const where = buildInvoiceWhere(filters);
+  return paginate({
+    pagination,
+    orderBy: { [pagination.sortBy]: pagination.sortOrder },
+    findMany: ({ skip, take, orderBy }) =>
+      prisma.invoice.findMany({ where, include: invoiceInclude, orderBy, skip, take }),
+    count: () => prisma.invoice.count({ where }),
   });
 }
 
@@ -412,6 +420,8 @@ export async function recordPayment(
     ipAddress,
   });
 
+  await notifyPaymentReceived(actorId, invoiceId, input.amount);
+
   return invoice;
 }
 
@@ -514,24 +524,22 @@ function buildPaymentWhere(filters: PaymentFilterQuery): Prisma.PaymentWhereInpu
   return where;
 }
 
-export async function listPayments(filters: PaymentFilterQuery) {
-  return prisma.payment.findMany({
-    where: buildPaymentWhere(filters),
-    include: {
-      invoice: {
-        select: {
-          id: true,
-          status: true,
-          totalAmount: true,
-          reservation: {
-            select: {
-              id: true,
-              hotel: { select: { id: true, name: true } },
-              guests: {
-                include: {
-                  guest: {
-                    select: { id: true, firstName: true, lastName: true },
-                  },
+export async function listPayments(filters: PaymentFilterQuery, pagination: PaginationParams) {
+  const where = buildPaymentWhere(filters);
+  const paymentInclude = {
+    invoice: {
+      select: {
+        id: true,
+        status: true,
+        totalAmount: true,
+        reservation: {
+          select: {
+            id: true,
+            hotel: { select: { id: true, name: true } },
+            guests: {
+              include: {
+                guest: {
+                  select: { id: true, firstName: true, lastName: true },
                 },
               },
             },
@@ -539,7 +547,14 @@ export async function listPayments(filters: PaymentFilterQuery) {
         },
       },
     },
-    orderBy: { createdAt: 'desc' },
+  };
+
+  return paginate({
+    pagination,
+    orderBy: { [pagination.sortBy]: pagination.sortOrder },
+    findMany: ({ skip, take, orderBy }) =>
+      prisma.payment.findMany({ where, include: paymentInclude, orderBy, skip, take }),
+    count: () => prisma.payment.count({ where }),
   });
 }
 

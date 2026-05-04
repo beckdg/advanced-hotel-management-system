@@ -117,3 +117,30 @@ export function validateAssignMaintenanceInput(body: unknown): AssignMaintenance
 
   return { assignedToUserId: assignedToUserId.trim() };
 }
+
+export interface BulkAssignMaintenanceInput {
+  requestIds: string[];
+  assignedToUserId: string;
+}
+
+export function validateBulkAssignMaintenanceInput(body: unknown): BulkAssignMaintenanceInput {
+  if (!body || typeof body !== 'object') {
+    throw new AppError('Invalid request body', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const data = body as Record<string, unknown>;
+  if (!Array.isArray(data.requestIds) || data.requestIds.length === 0) {
+    throw new AppError('requestIds must be a non-empty array', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const requestIds = data.requestIds.filter((id) => isNonEmptyString(id)) as string[];
+  if (requestIds.length !== data.requestIds.length) {
+    throw new AppError('requestIds must contain valid string ids', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  if (!isNonEmptyString(data.assignedToUserId)) {
+    throw new AppError('assignedToUserId is required', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  return { requestIds, assignedToUserId: data.assignedToUserId.trim() };
+}
