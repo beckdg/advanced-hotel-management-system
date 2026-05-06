@@ -13,6 +13,11 @@ import { HousekeepingPage } from '@/pages/HousekeepingPage';
 import { MaintenancePage } from '@/pages/MaintenancePage';
 import { BillingPage } from '@/pages/BillingPage';
 import { InvoicesPage } from '@/pages/InvoicesPage';
+import { NotificationsPage } from '@/pages/NotificationsPage';
+import { ReportsPage } from '@/pages/ReportsPage';
+import { AuditLogsPage } from '@/pages/AuditLogsPage';
+import { SearchPage } from '@/pages/SearchPage';
+import { ExportsPage } from '@/pages/ExportsPage';
 
 export const router = createBrowserRouter([
   {
@@ -69,6 +74,26 @@ export const router = createBrowserRouter([
           {
             path: 'invoices',
             element: <InvoicesPage />,
+          },
+          {
+            path: 'notifications',
+            element: <NotificationsPage />,
+          },
+          {
+            path: 'reports',
+            element: <ReportsPage />,
+          },
+          {
+            path: 'audit-logs',
+            element: <AuditLogsPage />,
+          },
+          {
+            path: 'search',
+            element: <SearchPage />,
+          },
+          {
+            path: 'exports',
+            element: <ExportsPage />,
           },
         ],
       },
