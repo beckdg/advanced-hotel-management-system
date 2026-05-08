@@ -2,6 +2,7 @@ import { NotificationChannel, NotificationType } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { AppError } from '../../common/errors';
 import { HTTP_STATUS } from '../../common/constants';
+import { PaginationParams, paginate } from '../../common/pagination';
 import {
   EmailProvider,
   InAppProvider,
@@ -9,6 +10,8 @@ import {
   NotificationProvider,
   SmsProvider,
 } from './providers';
+
+export const NOTIFICATION_SORT_FIELDS = ['createdAt', 'readAt', 'type'] as const;
 
 const providers: NotificationProvider[] = [
   new InAppProvider(),
@@ -53,11 +56,14 @@ export async function emitNotification(payload: NotificationPayload): Promise<vo
   );
 }
 
-export async function listUserNotifications(userId: string) {
-  return prisma.notification.findMany({
-    where: { userId, channel: NotificationChannel.IN_APP },
-    orderBy: { createdAt: 'desc' },
-    take: 50,
+export async function listUserNotifications(userId: string, pagination: PaginationParams) {
+  const where = { userId, channel: NotificationChannel.IN_APP };
+  return paginate({
+    pagination,
+    orderBy: { [pagination.sortBy]: pagination.sortOrder },
+    findMany: ({ skip, take, orderBy }) =>
+      prisma.notification.findMany({ where, orderBy, skip, take }),
+    count: () => prisma.notification.count({ where }),
   });
 }
 
@@ -92,7 +98,30 @@ export async function markAllNotificationsRead(userId: string) {
     data: { readAt: new Date() },
   });
 
-  return listUserNotifications(userId);
+  return prisma.notification.findMany({
+    where: { userId, channel: NotificationChannel.IN_APP },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+  });
+}
+
+export async function bulkMarkNotificationsRead(userId: string, notificationIds: string[]) {
+  const notifications = await prisma.notification.findMany({
+    where: { id: { in: notificationIds }, userId },
+  });
+
+  if (notifications.length !== notificationIds.length) {
+    throw new AppError('One or more notifications not found', HTTP_STATUS.NOT_FOUND, {
+      code: 'NOTIFICATIONS_NOT_FOUND',
+    });
+  }
+
+  await prisma.notification.updateMany({
+    where: { id: { in: notificationIds }, userId, readAt: null },
+    data: { readAt: new Date() },
+  });
+
+  return prisma.notification.findMany({ where: { id: { in: notificationIds } } });
 }
 
 export async function getUnreadCount(userId: string): Promise<number> {

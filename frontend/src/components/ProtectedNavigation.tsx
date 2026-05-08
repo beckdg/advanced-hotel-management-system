@@ -14,6 +14,8 @@ interface ProtectedNavigationProps {
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', to: '/dashboard', icon: '◫' },
+  { label: 'Search', to: '/search', icon: '🔍' },
+  { label: 'Exports', to: '/exports', icon: '⬇' },
   { label: 'Hotels', to: '/hotels', permission: 'hotels.read', icon: '⌂' },
   { label: 'Rooms', to: '/rooms', permission: 'rooms.read', icon: '▣' },
   { label: 'Guests', to: '/guests', permission: 'guests.read', icon: '◎' },
@@ -22,6 +24,9 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Maintenance', to: '/maintenance', permission: 'maintenance.read', icon: '⚙' },
   { label: 'Billing', to: '/billing', permission: 'billing.read', icon: '$' },
   { label: 'Invoices', to: '/invoices', permission: 'billing.read', icon: '₿' },
+  { label: 'Notifications', to: '/notifications', permission: 'notifications.read', icon: '🔔' },
+  { label: 'Reports', to: '/reports', permission: 'reports.read', icon: '📊' },
+  { label: 'Audit Logs', to: '/audit-logs', permission: 'audit.read', icon: '📋' },
 ];
 
 export function ProtectedNavigation({ variant = 'sidebar' }: ProtectedNavigationProps) {
