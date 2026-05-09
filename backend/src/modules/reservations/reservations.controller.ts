@@ -1,8 +1,10 @@
 import { Request, Response } from 'express';
+import { parsePaginationQuery } from '../../common/pagination';
 import {
   validateCreateReservationInput,
   validateUpdateReservationInput,
   parseReservationFilters,
+  validateBulkCancelInput,
 } from './reservations.validators';
 import {
   createReservation,
@@ -11,6 +13,8 @@ import {
   updateReservation,
   checkInReservation,
   checkOutReservation,
+  bulkCancelReservations,
+  RESERVATION_SORT_FIELDS,
 } from './reservations.service';
 
 function getIpAddress(req: Request): string | undefined {
@@ -25,7 +29,22 @@ export async function create(req: Request, res: Response): Promise<void> {
 
 export async function getAll(req: Request, res: Response): Promise<void> {
   const filters = parseReservationFilters(req.query as Record<string, unknown>);
-  const reservations = await listReservations(filters);
+  const pagination = parsePaginationQuery(
+    req.query as Record<string, unknown>,
+    [...RESERVATION_SORT_FIELDS],
+    'checkInDate',
+  );
+  const result = await listReservations(filters, pagination);
+  res.status(200).json({ status: 'success', ...result });
+}
+
+export async function bulkCancel(req: Request, res: Response): Promise<void> {
+  const input = validateBulkCancelInput(req.body);
+  const reservations = await bulkCancelReservations(
+    input.reservationIds,
+    req.user!.id,
+    getIpAddress(req),
+  );
   res.status(200).json({ status: 'success', data: reservations });
 }
 
