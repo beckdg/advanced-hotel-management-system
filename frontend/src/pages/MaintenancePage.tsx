@@ -18,6 +18,8 @@ export function MaintenancePage() {
   const [error, setError] = useState('');
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [assignUserId, setAssignUserId] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkAssignUserId, setBulkAssignUserId] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['maintenance-requests'],
@@ -65,7 +67,22 @@ export function MaintenancePage() {
     onSuccess: invalidate,
   });
 
+  const bulkAssignMutation = useMutation({
+    mutationFn: () => apiClient.bulkAssignMaintenance(selectedIds, bulkAssignUserId),
+    onSuccess: () => {
+      invalidate();
+      setSelectedIds([]);
+      setBulkAssignUserId('');
+    },
+  });
+
   const requests = data?.data ?? [];
+
+  function toggleSelection(id: string) {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  }
 
   function renderActions(req: MaintenanceRequest) {
     if (!canWrite) return '—';
@@ -159,6 +176,29 @@ export function MaintenancePage() {
         </div>
       )}
 
+      {canWrite && selectedIds.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+          <span className="text-sm font-medium text-blue-800">
+            {selectedIds.length} selected
+          </span>
+          <input
+            type="text"
+            placeholder="Assign to User ID"
+            value={bulkAssignUserId}
+            onChange={(e) => setBulkAssignUserId(e.target.value)}
+            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+          />
+          <button
+            type="button"
+            onClick={() => bulkAssignMutation.mutate()}
+            disabled={bulkAssignMutation.isPending || !bulkAssignUserId}
+            className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            Bulk Assign
+          </button>
+        </div>
+      )}
+
       {isLoading ? (
         <p className="text-sm text-slate-500">Loading requests...</p>
       ) : (
@@ -167,6 +207,22 @@ export function MaintenancePage() {
           keyExtractor={(r) => r.id}
           emptyMessage="No maintenance requests."
           columns={[
+            ...(canWrite
+              ? [
+                  {
+                    key: 'select',
+                    header: '',
+                    render: (r: MaintenanceRequest) => (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(r.id)}
+                        onChange={() => toggleSelection(r.id)}
+                        disabled={r.status !== 'OPEN'}
+                      />
+                    ),
+                  },
+                ]
+              : []),
             { key: 'title', header: 'Title' },
             { key: 'room', header: 'Room', render: (r) => r.room.roomNumber },
             { key: 'hotel', header: 'Hotel', render: (r) => r.room.hotel.name },
