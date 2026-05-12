@@ -9,7 +9,20 @@ import {
   generateDraftInvoiceForReservation,
   getBillingMetrics,
 } from '../billing';
+import { getRecentAuditLogs } from '../audit';
+import {
+  getRecentNotifications,
+  getUnreadCount,
+  notifyCheckIn,
+  notifyCheckOut,
+  notifyReservationConfirmed,
+  notifyReservationCreated,
+} from '../notifications';
+import { PERMISSIONS } from '../rbac/rbac.constants';
+import { PaginationParams, paginate } from '../../common/pagination';
 import { OVERLAP_BLOCKING_STATUSES, validateStatusTransition } from './reservation.state';
+
+export const RESERVATION_SORT_FIELDS = ['checkInDate', 'checkOutDate', 'status', 'createdAt'] as const;
 import {
   CreateReservationInput,
   UpdateReservationInput,
@@ -140,23 +153,92 @@ export async function createReservation(
     ipAddress,
   });
 
+  await notifyReservationCreated(actorId, reservation.id, reservation.room.roomNumber);
+
+  if (reservation.status === ReservationStatus.CONFIRMED) {
+    await notifyReservationConfirmed(actorId, reservation.id, reservation.room.roomNumber);
+  }
+
   return reservation;
 }
 
-export async function listReservations(filters: ReservationFilterQuery) {
+function buildReservationWhere(filters: ReservationFilterQuery): Prisma.ReservationWhereInput {
   const where: Prisma.ReservationWhereInput = {};
-
   if (filters.hotelId) where.hotelId = filters.hotelId;
   if (filters.roomId) where.roomId = filters.roomId;
   if (filters.status) where.status = filters.status;
-  if (filters.guestId) {
-    where.guests = { some: { guestId: filters.guestId } };
+  if (filters.guestId) where.guests = { some: { guestId: filters.guestId } };
+  return where;
+}
+
+export async function listReservations(
+  filters: ReservationFilterQuery,
+  pagination: PaginationParams,
+) {
+  const where = buildReservationWhere(filters);
+  return paginate({
+    pagination,
+    orderBy: { [pagination.sortBy]: pagination.sortOrder },
+    findMany: ({ skip, take, orderBy }) =>
+      prisma.reservation.findMany({
+        where,
+        include: reservationInclude,
+        orderBy,
+        skip,
+        take,
+      }),
+    count: () => prisma.reservation.count({ where }),
+  });
+}
+
+export async function bulkCancelReservations(
+  reservationIds: string[],
+  actorId: string,
+  ipAddress?: string,
+) {
+  const reservations = await prisma.reservation.findMany({
+    where: { id: { in: reservationIds } },
+  });
+
+  if (reservations.length !== reservationIds.length) {
+    throw new AppError('One or more reservations not found', HTTP_STATUS.BAD_REQUEST, {
+      code: 'RESERVATIONS_NOT_FOUND',
+    });
   }
 
+  const cancellable: ReservationStatus[] = [
+    ReservationStatus.PENDING,
+    ReservationStatus.CONFIRMED,
+  ];
+  const invalid = reservations.filter((r) => !cancellable.includes(r.status));
+  if (invalid.length > 0) {
+    throw new AppError(
+      'Only PENDING or CONFIRMED reservations can be bulk cancelled',
+      HTTP_STATUS.BAD_REQUEST,
+      { code: 'INVALID_BULK_CANCEL_STATUS', details: { invalidIds: invalid.map((r) => r.id) } },
+    );
+  }
+
+  await prisma.reservation.updateMany({
+    where: { id: { in: reservationIds } },
+    data: { status: ReservationStatus.CANCELLED },
+  });
+
+  await Promise.all(
+    reservationIds.map((id) =>
+      createAuditLog({
+        userId: actorId,
+        action: 'reservations.bulk_cancel',
+        entity: 'Reservation',
+        entityId: id,
+        ipAddress,
+      }),
+    ),
+  );
+
   return prisma.reservation.findMany({
-    where,
+    where: { id: { in: reservationIds } },
     include: reservationInclude,
-    orderBy: { checkInDate: 'desc' },
   });
 }
 
@@ -252,6 +334,13 @@ export async function updateReservation(
     ipAddress,
   });
 
+  if (
+    input.status === ReservationStatus.CONFIRMED &&
+    existing.status !== ReservationStatus.CONFIRMED
+  ) {
+    await notifyReservationConfirmed(actorId, id, reservation.room.roomNumber);
+  }
+
   return reservation;
 }
 
@@ -283,6 +372,8 @@ export async function checkInReservation(id: string, actorId: string, ipAddress?
     entityId: id,
     ipAddress,
   });
+
+  await notifyCheckIn(actorId, id, reservation.room.roomNumber);
 
   return reservation;
 }
@@ -317,10 +408,12 @@ export async function checkOutReservation(id: string, actorId: string, ipAddress
     ipAddress,
   });
 
+  await notifyCheckOut(actorId, id, reservation.room.roomNumber);
+
   return reservation;
 }
 
-export async function getDashboardMetrics() {
+export async function getDashboardMetrics(userId: string, permissions: string[] = []) {
   const [
     totalRooms,
     activeReservations,
@@ -329,6 +422,9 @@ export async function getDashboardMetrics() {
     activeMaintenanceRequests,
     availableRooms,
     billingMetrics,
+    recentNotifications,
+    unreadCount,
+    recentAudit,
   ] = await Promise.all([
     prisma.room.count(),
     prisma.reservation.count({
@@ -351,6 +447,9 @@ export async function getDashboardMetrics() {
     }),
     prisma.room.count({ where: { status: RoomStatus.AVAILABLE } }),
     getBillingMetrics(),
+    getRecentNotifications(userId, 5),
+    getUnreadCount(userId),
+    permissions.includes(PERMISSIONS.AUDIT_READ) ? getRecentAuditLogs(5) : Promise.resolve([]),
   ]);
 
   return {
@@ -363,5 +462,8 @@ export async function getDashboardMetrics() {
     totalRevenue: billingMetrics.totalRevenue,
     outstandingInvoices: billingMetrics.outstandingInvoices,
     paidInvoices: billingMetrics.paidInvoices,
+    recentNotifications,
+    unreadNotifications: unreadCount,
+    recentAuditActivity: recentAudit,
   };
 }

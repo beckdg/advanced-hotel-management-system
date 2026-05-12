@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/components/PageHeader';
 import { DataTable } from '@/components/DataTable';
+import { PaginationControls } from '@/components/PaginationControls';
 import { ReservationStatusBadge } from '@/components/ReservationStatusBadge';
 import { ReservationForm } from '@/features/reservations/ReservationForm';
 import { apiClient } from '@/services/api';
@@ -23,6 +24,8 @@ export function ReservationsPage() {
   const canWrite = useAuthStore((s) => s.user?.permissions.includes('reservations.write'));
   const [showForm, setShowForm] = useState(false);
   const [filters, setFilters] = useState<ReservationFilters>({});
+  const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [error, setError] = useState('');
 
   const { data: hotelsData } = useQuery({
@@ -31,8 +34,16 @@ export function ReservationsPage() {
   });
 
   const { data, isLoading } = useQuery({
-    queryKey: ['reservations', filters],
-    queryFn: () => apiClient.getReservations(filters),
+    queryKey: ['reservations', filters, page],
+    queryFn: () => apiClient.getReservations(filters, { page, limit: 20 }),
+  });
+
+  const bulkCancelMutation = useMutation({
+    mutationFn: () => apiClient.bulkCancelReservations(selectedIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reservations'] });
+      setSelectedIds([]);
+    },
   });
 
   const createMutation = useMutation({
@@ -71,6 +82,13 @@ export function ReservationsPage() {
 
   const hotels = hotelsData?.data ?? [];
   const reservations = data?.data ?? [];
+  const pagination = data?.pagination;
+
+  function toggleSelection(id: string) {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  }
 
   function formatDate(dateStr: string) {
     return new Date(dateStr).toLocaleDateString();
@@ -142,6 +160,22 @@ export function ReservationsPage() {
         </select>
       </div>
 
+      {canWrite && selectedIds.length > 0 && (
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+          <span className="text-sm font-medium text-red-800">
+            {selectedIds.length} selected
+          </span>
+          <button
+            type="button"
+            onClick={() => bulkCancelMutation.mutate()}
+            disabled={bulkCancelMutation.isPending}
+            className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+          >
+            Bulk Cancel
+          </button>
+        </div>
+      )}
+
       {isLoading ? (
         <p className="text-sm text-slate-500">Loading reservations...</p>
       ) : (
@@ -150,6 +184,22 @@ export function ReservationsPage() {
           keyExtractor={(r) => r.id}
           emptyMessage="No reservations found."
           columns={[
+            ...(canWrite
+              ? [
+                  {
+                    key: 'select',
+                    header: '',
+                    render: (r: Reservation) => (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(r.id)}
+                        onChange={() => toggleSelection(r.id)}
+                        disabled={['CHECKED_OUT', 'CANCELLED'].includes(r.status)}
+                      />
+                    ),
+                  },
+                ]
+              : []),
             {
               key: 'guests',
               header: 'Guests',
@@ -207,6 +257,10 @@ export function ReservationsPage() {
             },
           ]}
         />
+      )}
+
+      {pagination && (
+        <PaginationControls pagination={pagination} onPageChange={setPage} />
       )}
     </div>
   );
