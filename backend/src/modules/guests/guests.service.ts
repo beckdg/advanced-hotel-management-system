@@ -2,7 +2,10 @@ import { prisma } from '../../config/database';
 import { AppError } from '../../common/errors';
 import { HTTP_STATUS } from '../../common/constants';
 import { createAuditLog } from '../../common/utils';
+import { PaginationParams, paginate } from '../../common/pagination';
 import { CreateGuestInput, UpdateGuestInput } from './guests.validators';
+
+export const GUEST_SORT_FIELDS = ['firstName', 'lastName', 'email', 'createdAt'] as const;
 
 export async function createGuest(input: CreateGuestInput, actorId: string, ipAddress?: string) {
   const guest = await prisma.guest.create({ data: input });
@@ -18,10 +21,18 @@ export async function createGuest(input: CreateGuestInput, actorId: string, ipAd
   return guest;
 }
 
-export async function listGuests() {
-  return prisma.guest.findMany({
-    include: { _count: { select: { reservations: true } } },
-    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+export async function listGuests(pagination: PaginationParams) {
+  return paginate({
+    pagination,
+    orderBy: { [pagination.sortBy]: pagination.sortOrder },
+    findMany: ({ skip, take, orderBy }) =>
+      prisma.guest.findMany({
+        include: { _count: { select: { reservations: true } } },
+        orderBy,
+        skip,
+        take,
+      }),
+    count: () => prisma.guest.count(),
   });
 }
 

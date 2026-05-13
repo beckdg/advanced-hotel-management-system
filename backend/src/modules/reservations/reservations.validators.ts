@@ -168,3 +168,25 @@ export function parseReservationFilters(query: Record<string, unknown>): Reserva
 
   return filters;
 }
+
+export interface BulkCancelInput {
+  reservationIds: string[];
+}
+
+export function validateBulkCancelInput(body: unknown): BulkCancelInput {
+  if (!body || typeof body !== 'object') {
+    throw new AppError('Invalid request body', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const data = body as Record<string, unknown>;
+  if (!Array.isArray(data.reservationIds) || data.reservationIds.length === 0) {
+    throw new AppError('reservationIds must be a non-empty array', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const reservationIds = data.reservationIds.filter((id) => isNonEmptyString(id)) as string[];
+  if (reservationIds.length !== data.reservationIds.length) {
+    throw new AppError('reservationIds must contain valid string ids', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  return { reservationIds };
+}

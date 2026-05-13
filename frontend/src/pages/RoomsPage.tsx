@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/components/PageHeader';
 import { DataTable } from '@/components/DataTable';
+import { PaginationControls } from '@/components/PaginationControls';
 import { RoomStatusBadge } from '@/components/RoomStatusBadge';
 import { apiClient } from '@/services/api';
+import { useAuthStore } from '@/store/authStore';
 import type { Room, RoomFilters, RoomStatus } from '@/types/hotel';
 
 const STATUS_OPTIONS: { value: RoomStatus | ''; label: string }[] = [
@@ -17,7 +19,12 @@ const STATUS_OPTIONS: { value: RoomStatus | ''; label: string }[] = [
 ];
 
 export function RoomsPage() {
+  const queryClient = useQueryClient();
+  const canWrite = useAuthStore((s) => s.user?.permissions.includes('rooms.write'));
   const [filters, setFilters] = useState<RoomFilters>({});
+  const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkStatus, setBulkStatus] = useState<RoomStatus>('AVAILABLE');
 
   const { data: hotelsData } = useQuery({
     queryKey: ['hotels'],
@@ -30,13 +37,28 @@ export function RoomsPage() {
   });
 
   const { data: roomsData, isLoading } = useQuery({
-    queryKey: ['rooms', filters],
-    queryFn: () => apiClient.getRooms(filters),
+    queryKey: ['rooms', filters, page],
+    queryFn: () => apiClient.getRooms(filters, { page, limit: 20 }),
+  });
+
+  const bulkMutation = useMutation({
+    mutationFn: () => apiClient.bulkUpdateRoomStatus(selectedIds, bulkStatus),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      setSelectedIds([]);
+    },
   });
 
   const hotels = hotelsData?.data ?? [];
   const roomTypes = roomTypesData?.data ?? [];
   const rooms = roomsData?.data ?? [];
+  const pagination = roomsData?.pagination;
+
+  function toggleSelection(id: string) {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  }
 
   const selectedHotel = hotels.find((h) => h.id === filters.hotelId);
   const floors = selectedHotel?.floors ?? [];
@@ -113,6 +135,33 @@ export function RoomsPage() {
         </select>
       </div>
 
+      {canWrite && selectedIds.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-stayflow-200 bg-stayflow-50 px-4 py-3">
+          <span className="text-sm font-medium text-stayflow-800">
+            {selectedIds.length} selected
+          </span>
+          <select
+            value={bulkStatus}
+            onChange={(e) => setBulkStatus(e.target.value as RoomStatus)}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm"
+          >
+            {STATUS_OPTIONS.filter((o) => o.value).map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => bulkMutation.mutate()}
+            disabled={bulkMutation.isPending}
+            className="rounded-lg bg-stayflow-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-stayflow-700 disabled:opacity-50"
+          >
+            Apply Status
+          </button>
+        </div>
+      )}
+
       {isLoading ? (
         <p className="text-sm text-slate-500">Loading rooms...</p>
       ) : (
@@ -121,6 +170,21 @@ export function RoomsPage() {
           keyExtractor={(r) => r.id}
           emptyMessage="No rooms match the selected filters."
           columns={[
+            ...(canWrite
+              ? [
+                  {
+                    key: 'select',
+                    header: '',
+                    render: (r: Room) => (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(r.id)}
+                        onChange={() => toggleSelection(r.id)}
+                      />
+                    ),
+                  },
+                ]
+              : []),
             { key: 'roomNumber', header: 'Room #' },
             { key: 'hotel', header: 'Hotel', render: (r) => r.hotel.name },
             { key: 'floor', header: 'Floor', render: (r) => r.floor.name },
@@ -137,6 +201,10 @@ export function RoomsPage() {
             },
           ]}
         />
+      )}
+
+      {pagination && (
+        <PaginationControls pagination={pagination} onPageChange={setPage} />
       )}
     </div>
   );
