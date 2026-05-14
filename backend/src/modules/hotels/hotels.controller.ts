@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
+import { parsePaginationQuery } from '../../common/pagination';
 import { validateCreateHotelInput, validateUpdateHotelInput } from './hotels.validators';
-import { createHotel, listHotels, getHotelById, updateHotel } from './hotels.service';
+import { createHotel, listHotels, getHotelById, updateHotel, HOTEL_SORT_FIELDS } from './hotels.service';
 
 function getIpAddress(req: Request): string | undefined {
   return (req.headers['x-forwarded-for'] as string) ?? req.socket.remoteAddress;
@@ -13,8 +14,13 @@ export async function create(req: Request, res: Response): Promise<void> {
 }
 
 export async function getAll(req: Request, res: Response): Promise<void> {
-  const hotels = await listHotels();
-  res.status(200).json({ status: 'success', data: hotels });
+  const pagination = parsePaginationQuery(
+    req.query as Record<string, unknown>,
+    [...HOTEL_SORT_FIELDS],
+    'name',
+  );
+  const result = await listHotels(pagination);
+  res.status(200).json({ status: 'success', ...result });
 }
 
 export async function getById(req: Request, res: Response): Promise<void> {

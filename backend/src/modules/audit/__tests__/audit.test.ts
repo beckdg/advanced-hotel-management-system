@@ -6,7 +6,7 @@ import { PERMISSIONS } from '../../rbac';
 
 jest.mock('../../../config/database', () => ({
   prisma: {
-    auditLog: { findMany: jest.fn(), create: jest.fn() },
+    auditLog: { findMany: jest.fn(), count: jest.fn(), create: jest.fn() },
   },
   connectDatabase: jest.fn(),
   disconnectDatabase: jest.fn(),
@@ -42,6 +42,7 @@ describe('Audit Logs API', () => {
   });
 
   it('should list audit logs with filters', async () => {
+    (mockPrisma.auditLog.count as jest.Mock).mockResolvedValue(1);
     (mockPrisma.auditLog.findMany as jest.Mock).mockResolvedValue([
       {
         id: 'log-1',

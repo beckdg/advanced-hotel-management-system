@@ -1,10 +1,19 @@
 import { Request, Response } from 'express';
+import { parsePaginationQuery } from '../../common/pagination';
 import {
   validateCreateRoomInput,
   validateUpdateRoomInput,
   parseRoomFilters,
+  validateBulkRoomStatusInput,
 } from './rooms.validators';
-import { createRoom, listRooms, getRoomById, updateRoom } from './rooms.service';
+import {
+  createRoom,
+  listRooms,
+  getRoomById,
+  updateRoom,
+  bulkUpdateRoomStatus,
+  ROOM_SORT_FIELDS,
+} from './rooms.service';
 
 function getIpAddress(req: Request): string | undefined {
   return (req.headers['x-forwarded-for'] as string) ?? req.socket.remoteAddress;
@@ -18,7 +27,23 @@ export async function create(req: Request, res: Response): Promise<void> {
 
 export async function getAll(req: Request, res: Response): Promise<void> {
   const filters = parseRoomFilters(req.query as Record<string, unknown>);
-  const rooms = await listRooms(filters);
+  const pagination = parsePaginationQuery(
+    req.query as Record<string, unknown>,
+    [...ROOM_SORT_FIELDS],
+    'roomNumber',
+  );
+  const result = await listRooms(filters, pagination);
+  res.status(200).json({ status: 'success', ...result });
+}
+
+export async function bulkStatus(req: Request, res: Response): Promise<void> {
+  const input = validateBulkRoomStatusInput(req.body);
+  const rooms = await bulkUpdateRoomStatus(
+    input.roomIds,
+    input.status,
+    req.user!.id,
+    getIpAddress(req),
+  );
   res.status(200).json({ status: 'success', data: rooms });
 }
 
