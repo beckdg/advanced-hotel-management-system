@@ -23,8 +23,47 @@ import type {
   InvoiceFilters,
   PaymentFilters,
 } from '@/types/billing';
+import type {
+  Notification,
+  AuditLog,
+  AuditLogFilters,
+  OccupancyReport,
+  RevenueReport,
+  OperationsReport,
+  ReportFilters,
+} from '@/types/notifications';
+import type {
+  PaginatedApiResponse,
+  PaginationQuery,
+  SearchResults,
+  ExportFormat,
+} from '@/types/api';
+import type { RoomStatus } from '@/types/hotel';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001';
+
+function buildQueryString(
+  params: Record<string, string | number | undefined>,
+): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== '') {
+      search.set(key, String(value));
+    }
+  }
+  const query = search.toString();
+  return query ? `?${query}` : '';
+}
+
+function appendPagination(
+  params: URLSearchParams,
+  pagination?: PaginationQuery,
+): void {
+  if (pagination?.page) params.set('page', String(pagination.page));
+  if (pagination?.limit) params.set('limit', String(pagination.limit));
+  if (pagination?.sortBy) params.set('sortBy', pagination.sortBy);
+  if (pagination?.sortOrder) params.set('sortOrder', pagination.sortOrder);
+}
 
 export interface ApiError {
   status: 'error';
@@ -150,8 +189,11 @@ class ApiClient {
     return this.request<{ status: string; service: string }>('/health');
   }
 
-  async getHotels(): Promise<ApiSuccessResponse<Hotel[]>> {
-    return this.request<ApiSuccessResponse<Hotel[]>>('/api/hotels');
+  async getHotels(pagination?: PaginationQuery): Promise<PaginatedApiResponse<Hotel>> {
+    const params = new URLSearchParams();
+    appendPagination(params, pagination);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<PaginatedApiResponse<Hotel>>(`/api/hotels${query}`);
   }
 
   async createHotel(input: CreateHotelInput): Promise<ApiSuccessResponse<Hotel>> {
@@ -166,18 +208,35 @@ class ApiClient {
     return this.request<ApiSuccessResponse<RoomType[]>>(`/api/room-types${query}`);
   }
 
-  async getRooms(filters?: RoomFilters): Promise<ApiSuccessResponse<Room[]>> {
+  async getRooms(
+    filters?: RoomFilters,
+    pagination?: PaginationQuery,
+  ): Promise<PaginatedApiResponse<Room>> {
     const params = new URLSearchParams();
     if (filters?.hotelId) params.set('hotelId', filters.hotelId);
     if (filters?.roomTypeId) params.set('roomTypeId', filters.roomTypeId);
     if (filters?.status) params.set('status', filters.status);
     if (filters?.floorId) params.set('floorId', filters.floorId);
+    appendPagination(params, pagination);
     const query = params.toString() ? `?${params.toString()}` : '';
-    return this.request<ApiSuccessResponse<Room[]>>(`/api/rooms${query}`);
+    return this.request<PaginatedApiResponse<Room>>(`/api/rooms${query}`);
   }
 
-  async getGuests(): Promise<ApiSuccessResponse<Guest[]>> {
-    return this.request<ApiSuccessResponse<Guest[]>>('/api/guests');
+  async bulkUpdateRoomStatus(
+    roomIds: string[],
+    status: RoomStatus,
+  ): Promise<ApiSuccessResponse<Room[]>> {
+    return this.request<ApiSuccessResponse<Room[]>>('/api/rooms/bulk-status', {
+      method: 'POST',
+      body: JSON.stringify({ roomIds, status }),
+    });
+  }
+
+  async getGuests(pagination?: PaginationQuery): Promise<PaginatedApiResponse<Guest>> {
+    const params = new URLSearchParams();
+    appendPagination(params, pagination);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<PaginatedApiResponse<Guest>>(`/api/guests${query}`);
   }
 
   async createGuest(input: CreateGuestInput): Promise<ApiSuccessResponse<Guest>> {
@@ -189,14 +248,25 @@ class ApiClient {
 
   async getReservations(
     filters?: ReservationFilters,
-  ): Promise<ApiSuccessResponse<Reservation[]>> {
+    pagination?: PaginationQuery,
+  ): Promise<PaginatedApiResponse<Reservation>> {
     const params = new URLSearchParams();
     if (filters?.hotelId) params.set('hotelId', filters.hotelId);
     if (filters?.roomId) params.set('roomId', filters.roomId);
     if (filters?.status) params.set('status', filters.status);
     if (filters?.guestId) params.set('guestId', filters.guestId);
+    appendPagination(params, pagination);
     const query = params.toString() ? `?${params.toString()}` : '';
-    return this.request<ApiSuccessResponse<Reservation[]>>(`/api/reservations${query}`);
+    return this.request<PaginatedApiResponse<Reservation>>(`/api/reservations${query}`);
+  }
+
+  async bulkCancelReservations(
+    reservationIds: string[],
+  ): Promise<ApiSuccessResponse<Reservation[]>> {
+    return this.request<ApiSuccessResponse<Reservation[]>>('/api/reservations/bulk-cancel', {
+      method: 'POST',
+      body: JSON.stringify({ reservationIds }),
+    });
   }
 
   async createReservation(
@@ -234,8 +304,15 @@ class ApiClient {
     return this.request<ApiSuccessResponse<DashboardMetrics>>('/api/dashboard/metrics');
   }
 
-  async getHousekeepingTasks(): Promise<ApiSuccessResponse<HousekeepingTask[]>> {
-    return this.request<ApiSuccessResponse<HousekeepingTask[]>>('/api/housekeeping/tasks');
+  async getHousekeepingTasks(
+    pagination?: PaginationQuery,
+  ): Promise<PaginatedApiResponse<HousekeepingTask>> {
+    const params = new URLSearchParams();
+    appendPagination(params, pagination);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<PaginatedApiResponse<HousekeepingTask>>(
+      `/api/housekeeping/tasks${query}`,
+    );
   }
 
   async startHousekeepingTask(id: string): Promise<ApiSuccessResponse<HousekeepingTask>> {
@@ -259,8 +336,23 @@ class ApiClient {
     );
   }
 
-  async getMaintenanceRequests(): Promise<ApiSuccessResponse<MaintenanceRequest[]>> {
-    return this.request<ApiSuccessResponse<MaintenanceRequest[]>>('/api/maintenance');
+  async getMaintenanceRequests(
+    pagination?: PaginationQuery,
+  ): Promise<PaginatedApiResponse<MaintenanceRequest>> {
+    const params = new URLSearchParams();
+    appendPagination(params, pagination);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<PaginatedApiResponse<MaintenanceRequest>>(`/api/maintenance${query}`);
+  }
+
+  async bulkAssignMaintenance(
+    requestIds: string[],
+    assignedToUserId: string,
+  ): Promise<ApiSuccessResponse<MaintenanceRequest[]>> {
+    return this.request<ApiSuccessResponse<MaintenanceRequest[]>>('/api/maintenance/bulk-assign', {
+      method: 'POST',
+      body: JSON.stringify({ requestIds, assignedToUserId }),
+    });
   }
 
   async createMaintenanceRequest(
@@ -300,13 +392,17 @@ class ApiClient {
     });
   }
 
-  async getInvoices(filters?: InvoiceFilters): Promise<ApiSuccessResponse<Invoice[]>> {
+  async getInvoices(
+    filters?: InvoiceFilters,
+    pagination?: PaginationQuery,
+  ): Promise<PaginatedApiResponse<Invoice>> {
     const params = new URLSearchParams();
     if (filters?.status) params.set('status', filters.status);
     if (filters?.reservationId) params.set('reservationId', filters.reservationId);
     if (filters?.guestId) params.set('guestId', filters.guestId);
+    appendPagination(params, pagination);
     const query = params.toString() ? `?${params.toString()}` : '';
-    return this.request<ApiSuccessResponse<Invoice[]>>(`/api/invoices${query}`);
+    return this.request<PaginatedApiResponse<Invoice>>(`/api/invoices${query}`);
   }
 
   async getInvoice(id: string): Promise<ApiSuccessResponse<Invoice>> {
@@ -345,13 +441,122 @@ class ApiClient {
     });
   }
 
-  async getPayments(filters?: PaymentFilters): Promise<ApiSuccessResponse<Payment[]>> {
+  async getPayments(
+    filters?: PaymentFilters,
+    pagination?: PaginationQuery,
+  ): Promise<PaginatedApiResponse<Payment>> {
     const params = new URLSearchParams();
     if (filters?.status) params.set('status', filters.status);
     if (filters?.reservationId) params.set('reservationId', filters.reservationId);
     if (filters?.guestId) params.set('guestId', filters.guestId);
+    appendPagination(params, pagination);
     const query = params.toString() ? `?${params.toString()}` : '';
-    return this.request<ApiSuccessResponse<Payment[]>>(`/api/payments${query}`);
+    return this.request<PaginatedApiResponse<Payment>>(`/api/payments${query}`);
+  }
+
+  async getNotifications(
+    pagination?: PaginationQuery,
+  ): Promise<PaginatedApiResponse<Notification>> {
+    const params = new URLSearchParams();
+    appendPagination(params, pagination);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<PaginatedApiResponse<Notification>>(`/api/notifications${query}`);
+  }
+
+  async bulkMarkNotificationsRead(
+    notificationIds: string[],
+  ): Promise<ApiSuccessResponse<Notification[]>> {
+    return this.request<ApiSuccessResponse<Notification[]>>('/api/notifications/bulk-read', {
+      method: 'POST',
+      body: JSON.stringify({ notificationIds }),
+    });
+  }
+
+  async markNotificationRead(id: string): Promise<ApiSuccessResponse<Notification>> {
+    return this.request<ApiSuccessResponse<Notification>>(`/api/notifications/${id}/read`, {
+      method: 'POST',
+    });
+  }
+
+  async markAllNotificationsRead(): Promise<ApiSuccessResponse<Notification[]>> {
+    return this.request<ApiSuccessResponse<Notification[]>>('/api/notifications/read-all', {
+      method: 'POST',
+    });
+  }
+
+  async getAuditLogs(
+    filters?: AuditLogFilters,
+    pagination?: PaginationQuery,
+  ): Promise<PaginatedApiResponse<AuditLog>> {
+    const params = new URLSearchParams();
+    if (filters?.userId) params.set('userId', filters.userId);
+    if (filters?.entityType) params.set('entityType', filters.entityType);
+    if (filters?.action) params.set('action', filters.action);
+    if (filters?.startDate) params.set('startDate', filters.startDate);
+    if (filters?.endDate) params.set('endDate', filters.endDate);
+    appendPagination(params, pagination);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<PaginatedApiResponse<AuditLog>>(`/api/audit-logs${query}`);
+  }
+
+  async globalSearch(q: string): Promise<ApiSuccessResponse<SearchResults>> {
+    return this.request<ApiSuccessResponse<SearchResults>>(
+      `/api/search${buildQueryString({ q })}`,
+    );
+  }
+
+  async downloadExport(
+    type: 'reservations' | 'invoices' | 'audit-logs',
+    format: ExportFormat,
+  ): Promise<void> {
+    const url = `${this.baseUrl}/api/exports/${type}?format=${format}`;
+    const accessToken = this.getAccessToken();
+    const headers: Record<string, string> = {};
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      const error: ApiError = await response.json().catch(() => ({
+        status: 'error',
+        message: response.statusText,
+      }));
+      throw new Error(error.message);
+    }
+
+    const blob = await response.blob();
+    const filename = `${type}.${format}`;
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
+  async getOccupancyReport(filters?: ReportFilters): Promise<ApiSuccessResponse<OccupancyReport>> {
+    const params = new URLSearchParams();
+    if (filters?.hotelId) params.set('hotelId', filters.hotelId);
+    if (filters?.startDate) params.set('startDate', filters.startDate);
+    if (filters?.endDate) params.set('endDate', filters.endDate);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<ApiSuccessResponse<OccupancyReport>>(`/api/reports/occupancy${query}`);
+  }
+
+  async getRevenueReport(filters?: ReportFilters): Promise<ApiSuccessResponse<RevenueReport>> {
+    const params = new URLSearchParams();
+    if (filters?.hotelId) params.set('hotelId', filters.hotelId);
+    if (filters?.startDate) params.set('startDate', filters.startDate);
+    if (filters?.endDate) params.set('endDate', filters.endDate);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<ApiSuccessResponse<RevenueReport>>(`/api/reports/revenue${query}`);
+  }
+
+  async getOperationsReport(filters?: ReportFilters): Promise<ApiSuccessResponse<OperationsReport>> {
+    const params = new URLSearchParams();
+    if (filters?.hotelId) params.set('hotelId', filters.hotelId);
+    if (filters?.startDate) params.set('startDate', filters.startDate);
+    if (filters?.endDate) params.set('endDate', filters.endDate);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<ApiSuccessResponse<OperationsReport>>(`/api/reports/operations${query}`);
   }
 }
 

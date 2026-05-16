@@ -9,6 +9,7 @@ jest.mock('../../../config/database', () => ({
     hotel: {
       create: jest.fn(),
       findMany: jest.fn(),
+      count: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
     },
@@ -80,6 +81,7 @@ describe('Hotels API', () => {
     it('should list hotels with hotels.read permission', async () => {
       mockGetAuthUserById.mockResolvedValue(mockAdminUser);
       (mockPrisma.hotel.findMany as jest.Mock).mockResolvedValue([mockHotel]);
+      (mockPrisma.hotel.count as jest.Mock).mockResolvedValue(1);
 
       const response = await request(app)
         .get('/api/hotels')
@@ -87,6 +89,7 @@ describe('Hotels API', () => {
         .expect(200);
 
       expect(response.body.data).toHaveLength(1);
+      expect(response.body.pagination.total).toBe(1);
     });
   });
 

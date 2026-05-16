@@ -2,7 +2,10 @@ import { prisma } from '../../config/database';
 import { AppError } from '../../common/errors';
 import { HTTP_STATUS } from '../../common/constants';
 import { createAuditLog } from '../../common/utils';
+import { PaginationParams, paginate } from '../../common/pagination';
 import { CreateHotelInput, UpdateHotelInput } from './hotels.validators';
+
+export const HOTEL_SORT_FIELDS = ['name', 'city', 'createdAt'] as const;
 
 const hotelInclude = {
   floors: { orderBy: { floorNumber: 'asc' as const } },
@@ -27,10 +30,13 @@ export async function createHotel(input: CreateHotelInput, actorId: string, ipAd
   return hotel;
 }
 
-export async function listHotels() {
-  return prisma.hotel.findMany({
-    include: hotelInclude,
-    orderBy: { name: 'asc' },
+export async function listHotels(pagination: PaginationParams) {
+  return paginate({
+    pagination,
+    orderBy: { [pagination.sortBy]: pagination.sortOrder },
+    findMany: ({ skip, take, orderBy }) =>
+      prisma.hotel.findMany({ include: hotelInclude, orderBy, skip, take }),
+    count: () => prisma.hotel.count(),
   });
 }
 
