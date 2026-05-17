@@ -3,7 +3,10 @@ import { prisma } from '../../config/database';
 import { AppError } from '../../common/errors';
 import { HTTP_STATUS } from '../../common/constants';
 import { createAuditLog } from '../../common/utils';
+import { PaginationParams, paginate } from '../../common/pagination';
 import { CreateRoomInput, UpdateRoomInput, RoomFilterQuery } from './rooms.validators';
+
+export const ROOM_SORT_FIELDS = ['roomNumber', 'status', 'createdAt'] as const;
 
 const roomInclude = {
   hotel: { select: { id: true, name: true } },
@@ -79,19 +82,55 @@ export async function createRoom(input: CreateRoomInput, actorId: string, ipAddr
   return room;
 }
 
-export async function listRooms(filters: RoomFilterQuery) {
+function buildRoomWhere(filters: RoomFilterQuery): Prisma.RoomWhereInput {
   const where: Prisma.RoomWhereInput = {};
-
   if (filters.hotelId) where.hotelId = filters.hotelId;
   if (filters.roomTypeId) where.roomTypeId = filters.roomTypeId;
   if (filters.floorId) where.floorId = filters.floorId;
   if (filters.status) where.status = filters.status;
+  return where;
+}
 
-  return prisma.room.findMany({
-    where,
-    include: roomInclude,
-    orderBy: [{ hotel: { name: 'asc' } }, { roomNumber: 'asc' }],
+export async function listRooms(filters: RoomFilterQuery, pagination: PaginationParams) {
+  const where = buildRoomWhere(filters);
+  return paginate({
+    pagination,
+    orderBy: { [pagination.sortBy]: pagination.sortOrder },
+    findMany: ({ skip, take, orderBy }) =>
+      prisma.room.findMany({ where, include: roomInclude, orderBy, skip, take }),
+    count: () => prisma.room.count({ where }),
   });
+}
+
+export async function bulkUpdateRoomStatus(
+  roomIds: string[],
+  status: CreateRoomInput['status'],
+  actorId: string,
+  ipAddress?: string,
+) {
+  const rooms = await prisma.room.findMany({ where: { id: { in: roomIds } } });
+  if (rooms.length !== roomIds.length) {
+    throw new AppError('One or more rooms not found', HTTP_STATUS.BAD_REQUEST, {
+      code: 'ROOMS_NOT_FOUND',
+    });
+  }
+
+  await prisma.room.updateMany({ where: { id: { in: roomIds } }, data: { status } });
+
+  await Promise.all(
+    roomIds.map((roomId) =>
+      createAuditLog({
+        userId: actorId,
+        action: 'rooms.bulk_status',
+        entity: 'Room',
+        entityId: roomId,
+        metadata: { status },
+        ipAddress,
+      }),
+    ),
+  );
+
+  return prisma.room.findMany({ where: { id: { in: roomIds } }, include: roomInclude });
 }
 
 export async function getRoomById(id: string) {

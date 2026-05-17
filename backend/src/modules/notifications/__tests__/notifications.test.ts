@@ -55,6 +55,7 @@ describe('Notifications API', () => {
   });
 
   it('should list user notifications', async () => {
+    (mockPrisma.notification.count as jest.Mock).mockResolvedValue(1);
     (mockPrisma.notification.findMany as jest.Mock).mockResolvedValue([
       {
         id: mockNotificationId,
