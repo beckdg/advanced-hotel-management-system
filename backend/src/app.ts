@@ -2,8 +2,14 @@ import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { env } from './config/env';
-import { requestLogger, errorHandler, notFoundHandler } from './common/middleware';
-import { apiRouter } from './modules';
+import {
+  requestLogger,
+  errorHandler,
+  notFoundHandler,
+  sanitizeRequest,
+  rateLimiter,
+} from './common/middleware';
+import { apiRouter, healthRouter } from './modules';
 
 export function createApp(): Application {
   const app = express();
@@ -15,11 +21,15 @@ export function createApp(): Application {
       credentials: true,
     }),
   );
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  app.use(express.json({ limit: '1mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+  app.use(sanitizeRequest);
+  app.use(rateLimiter);
   app.use(requestLogger);
 
-  app.use(apiRouter);
+  app.use('/health', healthRouter);
+  app.use('/api/v1', apiRouter);
+  app.use('/api', apiRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

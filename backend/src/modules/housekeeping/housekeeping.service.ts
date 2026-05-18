@@ -5,10 +5,13 @@ import { HTTP_STATUS } from '../../common/constants';
 import { createAuditLog } from '../../common/utils';
 import { validateHousekeepingTransition } from './housekeeping.state';
 import { notifyHousekeepingAssigned } from '../notifications';
+import { PaginationParams, paginate } from '../../common/pagination';
 import {
   CreateHousekeepingTaskInput,
   UpdateHousekeepingTaskInput,
 } from './housekeeping.validators';
+
+export const HOUSEKEEPING_SORT_FIELDS = ['status', 'createdAt'] as const;
 
 const taskInclude = {
   room: {
@@ -83,10 +86,13 @@ export async function createHousekeepingTask(
   return task;
 }
 
-export async function listHousekeepingTasks() {
-  return prisma.housekeepingTask.findMany({
-    include: taskInclude,
-    orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+export async function listHousekeepingTasks(pagination: PaginationParams) {
+  return paginate({
+    pagination,
+    orderBy: { [pagination.sortBy]: pagination.sortOrder },
+    findMany: ({ skip, take, orderBy }) =>
+      prisma.housekeepingTask.findMany({ include: taskInclude, orderBy, skip, take }),
+    count: () => prisma.housekeepingTask.count(),
   });
 }
 

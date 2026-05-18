@@ -137,3 +137,30 @@ export function parseRoomFilters(query: Record<string, unknown>): RoomFilterQuer
 
   return filters;
 }
+
+export interface BulkRoomStatusInput {
+  roomIds: string[];
+  status: RoomStatus;
+}
+
+export function validateBulkRoomStatusInput(body: unknown): BulkRoomStatusInput {
+  if (!body || typeof body !== 'object') {
+    throw new AppError('Invalid request body', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const data = body as Record<string, unknown>;
+
+  if (!Array.isArray(data.roomIds) || data.roomIds.length === 0) {
+    throw new AppError('roomIds must be a non-empty array', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const roomIds = data.roomIds.filter((id) => isNonEmptyString(id)) as string[];
+  if (roomIds.length !== data.roomIds.length) {
+    throw new AppError('roomIds must contain valid string ids', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  return {
+    roomIds,
+    status: validateRoomStatus(data.status),
+  };
+}
