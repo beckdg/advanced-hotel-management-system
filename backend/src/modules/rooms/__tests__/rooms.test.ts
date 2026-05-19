@@ -21,6 +21,7 @@ jest.mock('../../../config/database', () => ({
     room: {
       create: jest.fn(),
       findMany: jest.fn(),
+      count: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
     },
@@ -119,6 +120,7 @@ describe('Rooms API', () => {
     it('should list all rooms', async () => {
       mockGetAuthUserById.mockResolvedValue(mockAdminUser);
       (mockPrisma.room.findMany as jest.Mock).mockResolvedValue([mockRoom]);
+      (mockPrisma.room.count as jest.Mock).mockResolvedValue(1);
 
       const response = await request(app)
         .get('/api/rooms')
@@ -131,6 +133,7 @@ describe('Rooms API', () => {
     it('should filter rooms by hotelId', async () => {
       mockGetAuthUserById.mockResolvedValue(mockAdminUser);
       (mockPrisma.room.findMany as jest.Mock).mockResolvedValue([mockRoom]);
+      (mockPrisma.room.count as jest.Mock).mockResolvedValue(1);
 
       await request(app)
         .get(`/api/rooms?hotelId=${mockHotelId}`)
@@ -147,6 +150,7 @@ describe('Rooms API', () => {
     it('should filter rooms by status', async () => {
       mockGetAuthUserById.mockResolvedValue(mockAdminUser);
       (mockPrisma.room.findMany as jest.Mock).mockResolvedValue([mockRoom]);
+      (mockPrisma.room.count as jest.Mock).mockResolvedValue(1);
 
       await request(app)
         .get('/api/rooms?status=AVAILABLE')
@@ -163,6 +167,7 @@ describe('Rooms API', () => {
     it('should filter rooms by roomTypeId and floorId', async () => {
       mockGetAuthUserById.mockResolvedValue(mockAdminUser);
       (mockPrisma.room.findMany as jest.Mock).mockResolvedValue([]);
+      (mockPrisma.room.count as jest.Mock).mockResolvedValue(0);
 
       await request(app)
         .get(`/api/rooms?roomTypeId=${mockRoomTypeId}&floorId=${mockFloorId}`)
