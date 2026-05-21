@@ -1,61 +1,38 @@
 # StayFlow
 
-**Hospitality Operations Platform** — a production-grade SaaS monorepo for hotel management.
+**Production-grade hospitality operations platform** for hotel management — reservations, housekeeping, maintenance, billing, reporting, and staff workflows.
 
-## Project Structure
+## Architecture
+
+StayFlow is a TypeScript monorepo:
 
 ```
 stayflow/
-├── backend/          # Node.js + Express + Prisma API
-├── frontend/         # React + Vite web application
-├── docs/             # Project documentation
+├── backend/          # Express + Prisma REST API
+├── frontend/         # React + Vite SPA
+├── docs/             # Architecture, API, deployment, security, ADRs
 ├── docker-compose.yml
 └── README.md
 ```
 
-## Prerequisites
+| Layer | Stack |
+|-------|-------|
+| API | Node.js 22, Express, Prisma, PostgreSQL |
+| Web | React 19, Vite, TanStack Query, Zustand, Tailwind |
+| Auth | JWT access + refresh tokens, RBAC permissions |
+| Observability | Request IDs, structured logging, `/health/details` |
 
-- [Node.js](https://nodejs.org/) 22+
-- [npm](https://www.npmjs.com/) 10+
-- [PostgreSQL](https://www.postgresql.org/) 16+ (for local development)
-- [Docker](https://www.docker.com/) & Docker Compose (for containerized development)
+See [docs/architecture.md](docs/architecture.md) for module layout and design principles.
 
-## Environment Variables
+## Quick Start
 
-### Backend (`backend/.env`)
+### Prerequisites
 
-Copy the example file and adjust values as needed:
+- Node.js 22+
+- PostgreSQL 16+ (or Docker)
+- npm 10+
 
-```bash
-cp backend/.env.example backend/.env
-```
-
-| Variable       | Description                          | Default                                              |
-| -------------- | ------------------------------------ | ---------------------------------------------------- |
-| `NODE_ENV`     | Runtime environment                  | `development`                                        |
-| `PORT`         | API server port                      | `3001`                                               |
-| `DATABASE_URL` | PostgreSQL connection string         | `postgresql://stayflow:stayflow@localhost:5432/stayflow?schema=public` |
-| `CORS_ORIGIN`  | Allowed frontend origin for CORS     | `http://localhost:5173`                              |
-| `JWT_ACCESS_SECRET`  | JWT access token signing secret | `change-me-access-secret` |
-| `JWT_REFRESH_SECRET` | JWT refresh token signing secret | `change-me-refresh-secret` |
-| `JWT_ACCESS_EXPIRES_IN` | Access token TTL | `15m` |
-| `JWT_REFRESH_EXPIRES_IN` | Refresh token TTL | `7d` |
-
-### Frontend (`frontend/.env`)
-
-```bash
-cp frontend/.env.example frontend/.env
-```
-
-| Variable             | Description          | Default                  |
-| -------------------- | -------------------- | ------------------------ |
-| `VITE_API_BASE_URL`  | Backend API base URL | `http://localhost:3001`  |
-
-## Local Development
-
-### 1. Start PostgreSQL
-
-Ensure PostgreSQL is running locally with a database named `stayflow`, or use Docker for just the database:
+### 1. Database
 
 ```bash
 docker compose up postgres -d
@@ -73,22 +50,7 @@ npm run prisma:seed
 npm run dev
 ```
 
-The API will be available at `http://localhost:3001`.
-
-**Health check:**
-
-```bash
-curl http://localhost:3001/health
-```
-
-Expected response:
-
-```json
-{
-  "status": "ok",
-  "service": "stayflow-api"
-}
-```
+API: `http://localhost:3001`
 
 ### 3. Frontend
 
@@ -99,92 +61,105 @@ cp .env.example .env
 npm run dev
 ```
 
-The web app will be available at `http://localhost:5173`.
+App: `http://localhost:5173`
 
-### Running Tests
+### Demo Users (seed)
+
+| Email | Password | Role |
+|-------|----------|------|
+| admin@stayflow.com | Admin123! | Super Admin |
+| manager@stayflow.com | Manager123! | Hotel Manager |
+| frontdesk@stayflow.com | Front123! | Front Desk |
+| housekeeping@stayflow.com | Clean123! | Housekeeping |
+| maintenance@stayflow.com | Fix123! | Maintenance |
+| finance@stayflow.com | Bill123! | Finance |
+
+## Docker
+
+Run the full stack:
+
+```bash
+docker compose up -d --build
+```
+
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:5173 |
+| API | http://localhost:3001 |
+| PostgreSQL | localhost:5432 |
+
+See [docs/deployment.md](docs/deployment.md) for production checklist.
+
+## Testing
+
+### Backend (200+ tests)
 
 ```bash
 cd backend
 npm test
 ```
 
-## Docker Development
+Jest + Supertest with mocked Prisma. Edge-case suites cover auth, RBAC, reservations, billing, operations, search, export, pagination, and observability.
 
-Run the entire stack with Docker Compose:
-
-```bash
-docker compose up --build
-```
-
-This starts:
-
-| Service    | URL                        | Description        |
-| ---------- | -------------------------- | ------------------ |
-| Frontend   | http://localhost:5173      | React web app      |
-| Backend    | http://localhost:3001      | Express API        |
-| PostgreSQL | localhost:5432             | Database           |
-
-Stop all services:
+### Frontend (40+ tests)
 
 ```bash
-docker compose down
+cd frontend
+npm test
 ```
 
-Remove volumes (reset database):
+Vitest + React Testing Library. Covers login, protected routes, forms, invoice workflow, notifications, search, and pagination.
 
-```bash
-docker compose down -v
-```
+See [docs/testing.md](docs/testing.md) for suite breakdown.
 
-## API Endpoints
+## API Overview
 
-| Method | Endpoint  | Description       |
-| ------ | --------- | ----------------- |
-| GET    | `/health` | Service health check |
+- Base: `/api` and `/api/v1` (versioned)
+- Auth: `POST /api/auth/login`, Bearer token on protected routes
+- Pagination: `?page=&limit=&sortBy=&sortOrder=` on list endpoints
+- Search: `GET /api/search?q=`
+- Export: `GET /api/exports/{reservations|invoices|audit-logs}?format=csv|json`
+- Health: `GET /health`, `GET /health/details`
 
-### Authentication
+Full reference: [docs/api-overview.md](docs/api-overview.md)
 
-| Method | Endpoint | Description |
-| ------ | -------- | ----------- |
-| POST | `/api/auth/register` | Register a new user |
-| POST | `/api/auth/login` | Login and receive tokens |
-| POST | `/api/auth/refresh` | Refresh access token |
-| POST | `/api/auth/logout` | Revoke refresh token |
+## Environment Variables
 
-### Users
+### Backend (`backend/.env`)
 
-| Method | Endpoint | Auth | Permission |
-| ------ | -------- | ---- | ---------- |
-| GET | `/api/users/me` | Required | — |
-| GET | `/api/users` | Required | `users.read` |
-| GET | `/api/users/:id` | Required | `users.read` |
-| PATCH | `/api/users/:id` | Required | `users.update` or self (name only) |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection | local dev URL |
+| `JWT_ACCESS_SECRET` | Access token secret | change in production |
+| `JWT_REFRESH_SECRET` | Refresh token secret | change in production |
+| `CORS_ORIGIN` | Frontend origin | `http://localhost:5173` |
+| `PORT` | API port | `3001` |
 
-### Default Roles
+### Frontend (`frontend/.env`)
 
-`SUPER_ADMIN`, `HOTEL_MANAGER`, `FRONT_DESK`, `HOUSEKEEPING`, `MAINTENANCE`, `FINANCE`
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `VITE_API_BASE_URL` | API base URL | `http://localhost:3001` |
 
-Seed creates a default admin: `admin@stayflow.com` / `Admin123!`
+## Documentation
 
-## Tech Stack
+| Document | Description |
+|----------|-------------|
+| [architecture.md](docs/architecture.md) | System design |
+| [api-overview.md](docs/api-overview.md) | Endpoints and conventions |
+| [deployment.md](docs/deployment.md) | Docker and production deploy |
+| [testing.md](docs/testing.md) | Test strategy |
+| [security.md](docs/security.md) | Auth, hardening, secrets |
+| [adr/](docs/adr/) | Architecture decision records |
 
-### Backend
+## Security
 
-- Node.js, TypeScript, Express
-- PostgreSQL, Prisma ORM
-- Jest, Supertest
-- ESLint, Prettier
+- Helmet, rate limiting, input sanitization
+- RBAC on every protected endpoint
+- Audit logging for sensitive mutations
+- Standardized error responses without stack leakage in production
 
-### Frontend
-
-- React, TypeScript, Vite
-- React Router, Zustand, TanStack Query
-- TailwindCSS
-
-### DevOps
-
-- Docker, Docker Compose
-- Multi-stage builds for backend and frontend
+Details: [docs/security.md](docs/security.md)
 
 ## License
 
