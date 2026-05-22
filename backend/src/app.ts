@@ -3,7 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { env } from './config/env';
 import {
-  requestLogger,
+  structuredRequestLogger,
+  requestIdMiddleware,
   errorHandler,
   notFoundHandler,
   sanitizeRequest,
@@ -23,9 +24,10 @@ export function createApp(): Application {
   );
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+  app.use(requestIdMiddleware);
   app.use(sanitizeRequest);
   app.use(rateLimiter);
-  app.use(requestLogger);
+  app.use(structuredRequestLogger);
 
   app.use('/health', healthRouter);
   app.use('/api/v1', apiRouter);
