@@ -1,7 +1,7 @@
 # StayFlow — Silver submission Dockerfile (repository root)
 #
-# Builds the full monorepo (backend API + frontend SPA) and produces a
-# production-ready backend runtime image with compiled frontend assets included.
+# Silver constraints: COPY destinations must live under /app (and peers);
+# this file uses two COPY instructions, both targeting /app.
 #
 # Usage:
 #   docker build -t stayflow-submission .
@@ -14,57 +14,39 @@
 #
 # For the full stack (PostgreSQL + API + Nginx frontend), use docker-compose.yml.
 
-# ── Backend: install dependencies ──────────────────────────────────────────────
-FROM node:22-alpine AS backend-deps
+FROM node:22-alpine AS builder
 
-WORKDIR /app/backend
+WORKDIR /app
 
-COPY backend/package.json backend/package-lock.json ./
-COPY backend/prisma ./prisma/
-
-RUN npm ci
-
-# ── Backend: compile TypeScript + Prisma client ──────────────────────────────
-FROM backend-deps AS backend-build
-
-COPY backend/ ./
-
-RUN npm run prisma:generate && npm run build
-
-# ── Frontend: install dependencies ───────────────────────────────────────────
-FROM node:22-alpine AS frontend-deps
-
-WORKDIR /app/frontend
-
-COPY frontend/package.json frontend/package-lock.json ./
-
-RUN npm ci
-
-# ── Frontend: production build ─────────────────────────────────────────────────
-FROM frontend-deps AS frontend-build
-
-COPY frontend/ ./
+COPY . /app/repo
 
 ARG VITE_API_BASE_URL=http://localhost:3001
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
-RUN npm run build
+RUN set -eux; \
+  cd /app/repo/backend; \
+  npm ci; \
+  npm run prisma:generate; \
+  npm run build; \
+  cd /app/repo/frontend; \
+  npm ci; \
+  npm run build; \
+  mkdir -p /app/release/prisma /app/release/dist /app/release/public /app/release/node_modules/.prisma; \
+  cp /app/repo/backend/package.json /app/repo/backend/package-lock.json /app/release/; \
+  cp -r /app/repo/backend/prisma/. /app/release/prisma/; \
+  cp -r /app/repo/backend/dist/. /app/release/dist/; \
+  cp -r /app/repo/backend/node_modules/.prisma/. /app/release/node_modules/.prisma/; \
+  cp -r /app/repo/frontend/dist/. /app/release/public/
 
-# ── Production runtime (API server) ────────────────────────────────────────────
 FROM node:22-alpine AS production
 
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-COPY backend/package.json backend/package-lock.json ./
-COPY backend/prisma ./prisma/
+COPY --from=builder /app/release /app
 
 RUN npm ci --omit=dev
-
-COPY --from=backend-build /app/backend/dist ./dist
-COPY --from=backend-build /app/backend/node_modules/.prisma ./node_modules/.prisma
-COPY --from=frontend-build /app/frontend/dist ./public
 
 EXPOSE 3001
 
