@@ -24,6 +24,11 @@ jest.mock('../../../config/database', () => ({
   disconnectDatabase: jest.fn(),
 }));
 
+jest.mock('../../notifications', () => ({
+  ...jest.requireActual('../../notifications'),
+  notifyPaymentReceived: jest.fn(),
+}));
+
 jest.mock('../../rbac/rbac.service', () => ({
   getAuthUserById: jest.fn(),
   mapUserToAuthUser: jest.requireActual('../../rbac/rbac.service').mapUserToAuthUser,
