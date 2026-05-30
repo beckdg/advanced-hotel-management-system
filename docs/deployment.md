@@ -1,5 +1,15 @@
 # Deployment
 
+## Silver Submission Dockerfile (root)
+
+Build the full monorepo from the repository root:
+
+```bash
+docker build -t stayflow-submission .
+```
+
+This installs backend and frontend dependencies, compiles both projects, and produces a production API image. See the root `Dockerfile` header comments and [README.md](../README.md#silver-submission-build-root-dockerfile) for run instructions.
+
 ## Docker Compose (Recommended for staging)
 
 From the repository root:

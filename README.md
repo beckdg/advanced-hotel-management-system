@@ -8,6 +8,7 @@ StayFlow is a TypeScript monorepo:
 
 ```
 stayflow/
+├── Dockerfile        # Silver submission — builds full monorepo from root
 ├── backend/          # Express + Prisma REST API
 ├── frontend/         # React + Vite SPA
 ├── docs/             # Architecture, API, deployment, security, ADRs
@@ -76,7 +77,32 @@ App: `http://localhost:5173`
 
 ## Docker
 
-Run the full stack:
+### Silver submission build (root Dockerfile)
+
+Build and install all dependencies from the repository root:
+
+```bash
+docker build -t stayflow-submission .
+```
+
+This multi-stage image compiles the backend API and frontend SPA, installs production dependencies, and runs the API server on port `3001`. Compiled frontend assets are included at `/app/public`.
+
+Run the image (requires a PostgreSQL instance):
+
+```bash
+docker run --rm -p 3001:3001 \
+  -e DATABASE_URL=postgresql://stayflow:stayflow@host.docker.internal:5432/stayflow \
+  -e JWT_ACCESS_SECRET=change-me-access-secret \
+  -e JWT_REFRESH_SECRET=change-me-refresh-secret \
+  -e CORS_ORIGIN=http://localhost:5173 \
+  stayflow-submission
+```
+
+Service-specific Dockerfiles remain in `backend/Dockerfile` and `frontend/Dockerfile` for modular builds.
+
+### Full stack (docker compose)
+
+Run PostgreSQL, API, and Nginx frontend together:
 
 ```bash
 docker compose up -d --build
@@ -88,7 +114,7 @@ docker compose up -d --build
 | API | http://localhost:3001 |
 | PostgreSQL | localhost:5432 |
 
-See [docs/deployment.md](docs/deployment.md) for production checklist.
+The frontend Nginx container proxies `/api` and `/health` to the backend service. See [docs/deployment.md](docs/deployment.md) for production checklist.
 
 ## Testing
 

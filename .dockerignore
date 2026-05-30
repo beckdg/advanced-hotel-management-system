@@ -1,0 +1,27 @@
+# Dependencies and build output
+**/node_modules
+**/dist
+**/coverage
+
+# Environment and secrets
+**/.env
+**/.env.local
+**/.env.*
+!**/.env.example
+
+# Version control and IDE
+.git
+.gitignore
+**/.DS_Store
+**/Thumbs.db
+
+# Logs and temp files
+**/*.log
+**/*.tsbuildinfo
+
+# Documentation-only (not needed for image build)
+docs
+
+# Submission artifacts
+*.zip
+submission-report.md
