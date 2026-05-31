@@ -1,4 +1,3 @@
-export { requestLogger } from './requestLogger';
 export { requestIdMiddleware } from './requestId';
 export { structuredRequestLogger } from './structuredLogger';
 export { errorHandler, notFoundHandler } from './errorHandler';

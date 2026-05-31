@@ -87,20 +87,6 @@ export async function checkOverlappingReservations(
   }
 }
 
-async function syncRoomOnCheckIn(roomId: string) {
-  await prisma.room.update({
-    where: { id: roomId },
-    data: { status: RoomStatus.OCCUPIED },
-  });
-}
-
-async function syncRoomOnCheckOut(roomId: string) {
-  await prisma.room.update({
-    where: { id: roomId },
-    data: { status: RoomStatus.DIRTY },
-  });
-}
-
 function buildGuestAssociations(guestIds: string[]) {
   return guestIds.map((guestId, index) => ({
     guestId,
