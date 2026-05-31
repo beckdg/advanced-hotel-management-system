@@ -1,4 +1,4 @@
-import { NotificationChannel, NotificationType } from '@prisma/client';
+import { NotificationChannel } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { AppError } from '../../common/errors';
 import { HTTP_STATUS } from '../../common/constants';

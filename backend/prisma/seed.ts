@@ -327,7 +327,7 @@ async function seedReservationsAndBilling(
             data: {
               invoiceId: invoice.id,
               amount: total,
-              method: PaymentMethod.CREDIT_CARD,
+              method: PaymentMethod.CARD,
               status: PaymentStatus.COMPLETED,
               processedAt: new Date(),
               transactionReference: `TXN-${reservation.id.slice(0, 8)}`,

@@ -33,7 +33,7 @@ export function parsePaginationQuery(
     Number.isFinite(limitRaw) && limitRaw >= 1 ? Math.min(Math.floor(limitRaw), 100) : 20;
 
   const sortOrder = query.sortOrder === 'desc' ? 'desc' : 'asc';
-  let sortBy =
+  const sortBy =
     typeof query.sortBy === 'string' && query.sortBy.trim().length > 0
       ? query.sortBy.trim()
       : defaultSortBy;
